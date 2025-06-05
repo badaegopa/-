@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>브런치 스타일 글</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Nanum Myeongjo', serif;
+      background-color: #f9f9f9;
+      color: #333;
+      line-height: 1.8;
+    }
+    .hero {
+      height: 100vh;
+      background-image: url('https://source.unsplash.com/1600x900/?sky,calm');
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      color: white;
+      padding: 20px;
+    }
+    .hero h1 {
+      font-size: 3em;
+      margin: 0;
+      animation: fadeInUp 2s ease-out;
+    }
+    .hero p {
+      font-size: 1.2em;
+      margin-top: 1em;
+      animation: fadeIn 3s ease-out;
+    }
+    @keyframes fadeInUp {
+      0% { opacity: 0; transform: translateY(40px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    .content {
+      max-width: 700px;
+      margin: 50px auto;
+      padding: 0 20px;
+    }
+    .content p {
+      margin-bottom: 1.5em;
+    }
+    .footer {
+      text-align: center;
+      font-size: 0.9em;
+      color: #999;
+      margin-bottom: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>너를 생각하며 걷는 길</h1>
+    <p>어쩌면 우린 늘, 같은 자리에 있었는지도 몰라.</p>
+  </div>
+
+  <div class="content">
+    <p>요즘 따라 하늘을 자주 보게 된다. 구름은 언제나 제멋대로인데, 그 자유로움이 부러웠다. 나도 그렇게 살 수 있을까, 문득 생각했다.</p>
+    <p>그날도 평소처럼 걷고 있었다. 익숙한 거리인데도 마음은 낯설었다. 지나가는 사람들의 표정, 바람의 냄새, 모든 게 조금은 다르게 느껴졌다.</p>
+    <p>그 순간, 문득 네가 생각났다. 함께 걷던 그 길 위에서 우리는 어떤 대화를 나눴을까. 아마 사소한 이야기였겠지만, 그 사소함이 지금은 소중하게 느껴진다.</p>
+    <p>나는 그날 이후로 조금씩 달라졌다. 예전에는 지나치던 것들에 눈길을 주기 시작했고, 내 마음속 작은 소리에도 귀를 기울이게 되었다.</p>
+    <p>이제는 조금 다르게 살아보려 한다. 나의 작은 변화가, 누군가에게도 따뜻한 바람이 되길 바라며.</p>
+    <p class="footer">_마음을 기록하는 사람, 홍길동입니다._</p>
+  </div>
+</body>
+</html>

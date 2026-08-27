@@ -56,6 +56,8 @@
   .buffchip span{color:var(--dim);font-weight:600;}
 
   .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+  .tapchip{pointer-events:auto;cursor:pointer;font-family:inherit;}
+  .tapchip:active{transform:scale(.96);}
   .mini.recenter{display:none;}
   #hud.free .mini.recenter{display:block;}
   .spacer{flex:1;}
@@ -324,6 +326,18 @@
   .achit .a2{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.5;}
   .achit .ac{font-size:11px;font-weight:900;color:#4bb98a;}
 
+  /* 별 배치 선택 */
+  .starpick{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;}
+  .starpick button{width:46px;height:52px;border-radius:13px;font-size:17px;font-weight:900;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);color:var(--dim);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+  .starpick button em{font-style:normal;font-size:9px;font-weight:700;opacity:.7;}
+  .starpick button.on{background:rgba(233,196,106,.16);border-color:var(--gold);color:var(--gold-2);}
+  .starpick button:disabled{opacity:.28;}
+  .starinfo{background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.07);border-radius:13px;
+    padding:12px 13px;margin-bottom:15px;font-size:12.5px;color:var(--dim);line-height:1.75;}
+  .starinfo b{color:var(--gold-2);}
+
   /* 당첨 회차 · 명예의 전당 */
   .drawbox{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:16px;
     padding:13px 12px;margin-bottom:12px;}
@@ -462,7 +476,8 @@
     <div class="slots" id="slots"></div>
     <div class="chips">
       <div class="buffchip" id="buffChip">🍀 버프 <span>—</span></div>
-      <div class="buffchip" id="goldChip" style="display:none">⭐ 행운의 상자 <span>0</span></div>
+      <div class="buffchip" id="goldChip" style="display:none">⭐ 별 <span>0</span></div>
+      <button class="buffchip tapchip" id="stepChip" style="display:none">👣 보유 걸음 <span>0</span></button>
     </div>
   </div>
   <div class="spacer"></div>
@@ -562,6 +577,20 @@
   </div>
 </div>
 
+<!-- 2-1. 별 → 황금 상자 배치 -->
+<div class="modal" id="starModal">
+  <div class="card">
+    <h2>⭐ 별을 황금 상자로</h2>
+    <p class="sub">모아둔 별을 이번 판 숲에 <b style="color:#f6dda1">황금 상자</b>로 놓을 수 있습니다.<br>
+    <b style="color:#f6dda1">고른 수만큼 별이 소모</b>됩니다 — 찾지 못해도 돌아오지 않습니다.<br>
+    아껴두려면 <b style="color:#f6dda1">0개</b>를 고르세요.</p>
+    <div class="starpick" id="starPick"></div>
+    <div class="starinfo" id="starInfo"></div>
+    <button class="cta" id="starGo">🌲 이 구성으로 숲에 들어가기</button>
+    <button class="ghost" id="starBack">← 버프 다시 보기</button>
+  </div>
+</div>
+
 <!-- 3. 결과 -->
 <div class="modal" id="resultModal">
   <div class="card">
@@ -591,7 +620,8 @@
   <div class="card">
     <h2>🌒 해가 저물었다</h2>
     <p class="sub" id="failSub"></p>
-    <button class="cta" id="adStepBtn">📺 광고 보고 걸음 +6</button>
+    <button class="cta" id="adStepBtn">📺 광고 보기 (⭐+1 · 👣+2)</button>
+    <button class="ghost" id="bankBtn" style="display:none">👣 보유 걸음 쓰기</button>
     <button class="ghost" id="windBtn">🍃 숲의 바람에 맡기기</button>
     <button class="ghost" id="failAgainBtn">🔁 처음부터 다시 도전</button>
   </div>
@@ -713,6 +743,10 @@ const COLS = 9, ROWS = 5;              // 9 x 5 = 45개 상자
 const CELL = 200, JIT = 62, MARGIN = 170;
 const MAP  = { w: (COLS-1)*CELL + MARGIN*2, h: (ROWS-1)*CELL + MARGIN*2 };
 const GOAL = 6;                        // 모아야 할 상자 수
+const START_STEPS  = 18;               // 매 판 시작 걸음 — 버프와 무관하게 항상 리셋
+const MAP_GOLD_MAX = 6;                // 한 판 숲에 놓을 수 있는 황금 상자 최대치
+const AD_STARS     = 1;                // 광고 1회 보상: 별
+const AD_STEPS     = 2;                // 광고 1회 보상: 걸음 (창고에 쌓인다)
 const WALK_SPEED = 340;                // px/s
 
 /* ---------- 유틸 ---------- */
@@ -757,9 +791,9 @@ const BUFFS = {
   good: {
     key:'good', em:'🍀', name:'행운의 순풍', luck:'좋음',
     tag:'적게 받고 크게 갚는 길',
-    steps: 20,
+    steps: START_STEPS,
     lines: [
-      ['시작 걸음', '<b>20보</b> — 채비는 가장 적다'],
+      ['시작 걸음', '<b>18보</b> — 모든 대답이 같다'],
       ['순풍',      '<b>이동과 지나치기</b> 모두 <b>35% 확률로 걸음을 쓰지 않는다</b>'],
       ['고르기',    '걸음을 자주 아끼는 만큼 <b>마음에 안 드는 번호를 더 많이 지나칠 수 있다</b>'],
       ['한마디',    '운을 믿는 자에게 숲은 적게 내어주고, 대신 자주 눈감아 준다.']
@@ -768,9 +802,9 @@ const BUFFS = {
   normal: {
     key:'normal', em:'🧭', name:'든든한 나침반', luck:'보통',
     tag:'앞을 읽으며 나아가는 길',
-    steps: 26,
+    steps: START_STEPS,
     lines: [
-      ['시작 걸음', '<b>26보</b> — 균형 잡힌 채비'],
+      ['시작 걸음', '<b>18보</b> — 모든 대답이 같다'],
       ['나침반',   '이웃한 상자의 <b>번호 범위(1~15 / 16~30 / 31~45)</b>가 미리 보인다'],
       ['눈썰미',   '<b>상급 상자도 1보</b>로 지나칠 수 있다 (원래는 2보)'],
       ['한마디',   '무난한 날에는, 앞을 읽는 눈이 가장 큰 무기가 된다.']
@@ -779,9 +813,9 @@ const BUFFS = {
   bad: {
     key:'bad', em:'🕯', name:'액땜의 등불', luck:'나쁨',
     tag:'흔들림 없이 멀리 가는 길',
-    steps: 34,
+    steps: START_STEPS,
     lines: [
-      ['시작 걸음', '<b>34보</b> — 가장 넉넉한 채비'],
+      ['시작 걸음', '<b>18보</b> — 모든 대답이 같다'],
       ['평탄한 길', '<b>모든 오솔길이 1보</b>로 고정된다 (먼 길도 똑같이)'],
       ['등불',     '행운 보정은 없다. 대신 계산이 어긋나지 않는다'],
       ['한마디',   '운이 나쁘다 말하는 이에게, 숲은 가장 넉넉한 짐을 지워 보낸다.']
@@ -807,8 +841,10 @@ const GRADES = {
 const GRADE_MIX = { low: 24, mid: 14, high: 7 };   // 45개 분포
 const DICE_COUNT = 6;                              // 오솔길 중간에 끼우는 주사위 상자
 const DICE_CHAIN_MAX = 3;                          // 연속 주사위 상한 (무한 이동 방지)
-const MAP_GOLD_MAX = 6;    /* 별을 아무리 모아도 한 판 숲에 놓이는 황금 상자는 6개까지 */
-const AD_STEPS     = 6;    /* 걸음이 막혔을 때 광고 1회로 받는 걸음 */
+/* 광고로 모은 걸음 — 판이 바뀌어도 사라지지 않는 창고 */
+const BKEY = 'forest-banked-steps-v1';
+const bankedSteps = () => { try { return Math.max(0, parseInt(localStorage.getItem(BKEY)||'0',10)||0); } catch(e){ return 0; } };
+function setBanked(v){ try { localStorage.setItem(BKEY, String(Math.max(0,v))); } catch(e){} }
 
 /* 광고로 모은 행운의 상자 (브라우저에 저장) */
 const GKEY = 'forest-gold-boxes-v1';
@@ -823,6 +859,7 @@ function saveGold(){ try { localStorage.setItem(GKEY, String(goldStock)); } catc
 let nodes = [], edges = [], entrance = null;
 let cur = null, steps = 0, maxSteps = 0, opened = [];
 let pending = null, skipped = 0;      // 담기/지나치기 결정 대기 노드, 지나친 상자 수
+let placeGold = 0;                    // 이번 판 숲에 놓을 황금 상자 수 (별 소모량)
 let adSteps = 0;                      // 이번 판에 광고로 받은 걸음
 let forced = null;                    // 주사위로 끌려가는 중 { left, from }
 let diceChain = 0, diceRolls = 0;     // 연속 주사위 횟수 / 한 판 총 굴림
@@ -918,7 +955,7 @@ function genMap(){
   }
   nodes.forEach((n,i) => { n.grade = GRADES[gpool[i]]; });
 
-  let gleft = Math.min(goldStock, MAP_GOLD_MAX);
+  let gleft = clamp(placeGold, 0, MAP_GOLD_MAX);
   const order = nodes.map((_,i) => i);
   for (let i=order.length-1; i>0; i--){
     const j = Math.floor(Math.random()*(i+1));
@@ -1100,7 +1137,7 @@ const playerPos = { x:0, y:0 };
 
 /* ---------- 진행 ---------- */
 function startRun(keepBuff){
-  ['luckModal','buffModal','resultModal','failModal','histModal','achModal','lbModal','devModal']
+  ['luckModal','buffModal','starModal','resultModal','failModal','histModal','achModal','lbModal','devModal']
     .forEach(m => el(m).classList.remove('on'));
   if (!keepBuff) buff = BUFFS.normal;
   genMap();
@@ -1319,10 +1356,7 @@ function takeChest(){
 
   const gr = node.grade;
   if (gr.bonus > 0) steps += gr.bonus;
-  if (gr.key === 'gold'){
-    goldStock = Math.max(0, goldStock - 1); saveGold(); updateGoldUI();
-    unlockAch('gold_take');
-  }
+  if (gr.key === 'gold') unlockAch('gold_take');   /* 별은 배치할 때 이미 소모됐다 */
   sfxTake();
   renderSlots();
   if (opened.length >= GOAL){ updateHUD(); finish(false); return; }
@@ -1367,9 +1401,14 @@ function checkStuck(){
     el('failSub').innerHTML =
       '걸음이 다했습니다. 상자는 <b style="color:#f6dda1">' + opened.length + ' / ' + GOAL + '</b>개를 열었습니다.' +
       (goldLeft ? '<br>숲에 <b style="color:#f6dda1">⭐ 황금 상자 ' + goldLeft + '개</b>가 아직 남아 있습니다.' : '') +
-      '<br>광고를 보면 <b style="color:#f6dda1">걸음 ' + AD_STEPS + '보</b>를 받아 이어서 갈 수 있습니다.<br>' +
+      '<br>광고를 보면 <b style="color:#f6dda1">별 +' + AD_STARS + ' · 걸음 +' + AD_STEPS +
+      '보</b>를 받아 이어서 갈 수 있습니다.<br>' +
       '<span style="font-size:11.5px">바람에 맡기면 남은 ' + (GOAL - opened.length) +
       '개를 아직 열지 않은 상자 중에서 무작위로 채웁니다.</span>';
+    const bk = bankedSteps();
+    const bb = el('bankBtn');
+    bb.style.display = bk > 0 ? '' : 'none';
+    bb.textContent = '👣 보유 걸음 ' + bk + '보 쓰기';
     openModal('failModal');
   }
 }
@@ -2088,8 +2127,21 @@ function renderSlots(){
     slotsEl.appendChild(d);
   }
 }
+function useBanked(){
+  const b = bankedSteps();
+  if (!b){ toast('보유한 걸음이 없습니다. 광고를 보면 걸음이 쌓입니다.'); return; }
+  steps += b; setBanked(0);
+  closeModal('failModal');
+  if (!finished) running = true;
+  sfxDone(); updateHUD(); cloudSync();
+  toast('👣 보유 걸음 <b>' + b + '보</b>를 꺼내 썼습니다');
+  checkStuck();
+}
 function updateHUD(){
   el('stepNum').textContent = steps;
+  const bk = bankedSteps(), chip = el('stepChip');
+  chip.style.display = bk > 0 ? '' : 'none';
+  chip.innerHTML = '👣 보유 걸음 <span>' + bk + '보</span>';
   el('stepFill').style.width = clamp(steps/Math.max(maxSteps,1), 0, 1)*100 + '%';
   el('stepsBox').classList.toggle('low', steps <= 4);
   el('buffChip').innerHTML = buff.em + ' ' + buff.name + ' <span>· ' + buff.tag + '</span>';
@@ -2552,7 +2604,7 @@ function updatePlayUI(){
    Play Games 저장된 게임에 올릴 묶음. 번호 원본은 보관 정책대로
    최근 1회차분만 들어간다. */
 function cloudPayload(){
-  return { v:1, gold: goldStock, issued: issuedNo(),
+  return { v:1, gold: goldStock, banked: bankedSteps(), issued: issuedNo(),
            log: hitLog(), ach: achDone, tickets: loadHistory() };
 }
 function applyCloud(d){
@@ -2560,6 +2612,9 @@ function applyCloud(d){
   let changed = false;
   if (typeof d.gold === 'number' && d.gold > goldStock){
     goldStock = d.gold; saveGold(); changed = true;
+  }
+  if (typeof d.banked === 'number' && d.banked > bankedSteps()){
+    setBanked(d.banked); changed = true;
   }
   if (typeof d.issued === 'number' && d.issued > issuedNo()){
     writeJSON(ISKEY, { n: d.issued }); changed = true;
@@ -2643,13 +2698,14 @@ async function watchAdForSteps(){
         : '광고를 끝까지 봐야 걸음을 받을 수 있습니다');
     return;
   }
+  goldStock += AD_STARS; saveGold(); updateGoldUI();
   steps += AD_STEPS;
   adSteps += AD_STEPS;
   closeModal('failModal');
   running = true;
   sfxDone();
-  updateHUD();
-  toast('👣 걸음 <b>+' + AD_STEPS + '</b> · 다시 걸을 수 있습니다');
+  updateHUD(); cloudSync();
+  toast('⭐ 별 +' + AD_STARS + ' · 👣 걸음 <b>+' + AD_STEPS + '</b> — 다시 걸을 수 있습니다');
   checkStuck();                      /* 그래도 못 가면 다시 안내한다 */
 }
 
@@ -2657,11 +2713,13 @@ async function watchAd(){
   audio();
   const r = await Play.showRewardedAd();
   if (r === 'rewarded'){
-    goldStock = goldStock + 1;
-    saveGold(); updateGoldUI(); cloudSync();
+    goldStock += AD_STARS;
+    setBanked(bankedSteps() + AD_STEPS);
+    saveGold(); updateGoldUI(); updateHUD(); cloudSync();
     sfxDone();
-    toast('⭐ 행운의 상자를 받았습니다! 지금 ' + goldStock + '개' +
-          (goldStock > MAP_GOLD_MAX ? ' (한 판에는 ' + MAP_GOLD_MAX + '개까지 놓입니다)' : ''));
+    toast('⭐ 별 +' + AD_STARS + ' · 👣 걸음 +' + AD_STEPS +
+          '<br><span style="font-size:11px;color:#9cb3a4">별 ' + goldStock +
+          '개 · 보유 걸음 ' + bankedSteps() + '보</span>');
   } else if (r === 'nofill'){
     toast('지금은 볼 수 있는 광고가 없습니다. 잠시 뒤 다시 시도해 주세요.');
   } else if (r === 'error'){
@@ -2673,11 +2731,9 @@ async function watchAd(){
 
 function updateGoldUI(){
   el('goldCount').textContent = '행운의 상자 ' + goldStock + '개';
-  el('goldNote').innerHTML = goldStock > MAP_GOLD_MAX
-    ? '보유는 제한이 없습니다. 다만 한 판 숲에는 <b>' + MAP_GOLD_MAX +
-      '개까지</b> 놓이고, 담지 못한 상자는 다음 판에 다시 놓입니다.'
-    : '광고를 보면 1개씩 쌓입니다. 모은 만큼 숲에 <b>황금 상자</b>로 놓입니다 (한 판 최대 ' +
-      MAP_GOLD_MAX + '개).';
+  el('goldNote').innerHTML =
+    '광고를 보면 <b>별 +' + AD_STARS + ' · 걸음 +' + AD_STEPS + '</b>. 보유에 상한은 없습니다.<br>' +
+    '숲에 들어가기 전 <b>0~' + MAP_GOLD_MAX + '개</b>를 골라 황금 상자로 놓습니다 (고른 만큼 소모).';
   el('adBtn1').disabled = false;
   const chip = el('goldChip');
   chip.style.display = goldStock > 0 ? '' : 'none';
@@ -2712,14 +2768,14 @@ el('devFrame').addEventListener('change', e => {
   setTimeout(resize, 60);
 });
 el('devReset').addEventListener('click', () => {
-  try { [HKEY, GKEY, AKEY, LKEY, SKEY, WKEY, LOGKEY, ISKEY].forEach(k => localStorage.removeItem(k)); } catch(e){}
-  goldStock = 0; achDone = {};
-  updateGoldUI(); updatePlayUI();
+  try { [HKEY, GKEY, AKEY, LKEY, SKEY, WKEY, LOGKEY, ISKEY, BKEY].forEach(k => localStorage.removeItem(k)); } catch(e){}
+  goldStock = 0; achDone = {}; placeGold = 0;
+  updateGoldUI(); updatePlayUI(); updateHUD();
   toast('저장 데이터를 초기화했습니다');
 });
 
 /* ---------- 안드로이드 뒤로가기 ---------- */
-const MODALS = ['adModal','devModal','lbModal','achModal','histModal','failModal','resultModal','buffModal'];
+const MODALS = ['adModal','devModal','lbModal','achModal','histModal','failModal','resultModal','starModal','buffModal'];
 function openModal(id){
   el(id).classList.add('on');
   try { history.pushState({ modal:id }, ''); } catch(e){}
@@ -2737,8 +2793,7 @@ function renderGradeLegend(){
   const rows = ['low','mid','high','gold'].map(k => {
     const g = GRADES[k];
     const cnt = k === 'gold'
-      ? (goldStock ? Math.min(goldStock, MAP_GOLD_MAX) + '개 놓임' +
-                     (goldStock > MAP_GOLD_MAX ? ' (보유 ' + goldStock + ')' : '')
+      ? (goldStock ? '보유 ' + goldStock + '개 · 다음 화면에서 0~' + MAP_GOLD_MAX + '개 선택'
                    : '없음 (광고로 획득)')
       : GRADE_MIX[k] + '개';
     return '<div class="bl"><span class="k" style="color:' + g.trim + '">' +
@@ -2777,15 +2832,54 @@ el('reLuckBtn').addEventListener('click', () => {
   el('buffModal').classList.remove('on');
   el('luckModal').classList.add('on');
 });
-el('enterBtn').addEventListener('click', () => startRun(true));
-el('againBtn').addEventListener('click', () => startRun(true));
+/* 버프 확정 → 별 배치 선택 (별이 없으면 건너뛴다) */
+function openStarPick(){
+  if (goldStock <= 0){ placeGold = 0; startRun(true); return; }
+  placeGold = Math.min(goldStock, MAP_GOLD_MAX);
+  renderStarPick();
+  closeModal('buffModal');
+  openModal('starModal');
+}
+function renderStarPick(){
+  const max = Math.min(goldStock, MAP_GOLD_MAX);
+  placeGold = clamp(placeGold, 0, max);
+  let html = '';
+  for (let i=0; i<=MAP_GOLD_MAX; i++){
+    html += '<button data-n="' + i + '"' + (i > max ? ' disabled' : '') +
+            (i === placeGold ? ' class="on"' : '') + '>' + i +
+            '<em>' + (i === 0 ? '아낌' : '별 ' + i) + '</em></button>';
+  }
+  el('starPick').innerHTML = html;
+  el('starPick').querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => { placeGold = +b.dataset.n; renderStarPick(); }));
+  el('starInfo').innerHTML =
+    '보유 별 <b>' + goldStock + '개</b> → 이번 판에 <b>' + placeGold + '개</b> 배치 · ' +
+    '남는 별 <b>' + (goldStock - placeGold) + '개</b><br>' +
+    (placeGold
+      ? '황금 상자는 담으면 <b>걸음 +4</b>, 지나치기는 공짜입니다.'
+      : '이번 판에는 황금 상자가 나오지 않습니다. 별은 그대로 쌓입니다.');
+  el('starGo').textContent = placeGold
+    ? '🌲 별 ' + placeGold + '개를 놓고 들어가기'
+    : '🌲 별을 아끼고 들어가기';
+}
+el('enterBtn').addEventListener('click', openStarPick);
+el('starBack').addEventListener('click', () => { closeModal('starModal'); openModal('buffModal'); });
+el('starGo').addEventListener('click', () => {
+  const use = clamp(placeGold, 0, Math.min(goldStock, MAP_GOLD_MAX));
+  goldStock -= use; placeGold = use;
+  saveGold(); updateGoldUI(); cloudSync();
+  startRun(true);
+});
+el('againBtn').addEventListener('click', () => { closeModal('resultModal'); openStarPick(); });
 el('reAskBtn').addEventListener('click', () => {
   ['resultModal','failModal'].forEach(m => el(m).classList.remove('on'));
   el('luckModal').classList.add('on');
   running = false;
 });
-el('failAgainBtn').addEventListener('click', () => startRun(true));
+el('failAgainBtn').addEventListener('click', () => { closeModal('failModal'); openStarPick(); });
 el('adStepBtn').addEventListener('click', watchAdForSteps);
+el('bankBtn').addEventListener('click', useBanked);
+el('stepChip').addEventListener('click', useBanked);
 el('windBtn').addEventListener('click', windFill);
 el('takeBtn').addEventListener('click', takeChest);
 el('skipBtn').addEventListener('click', skipChest);

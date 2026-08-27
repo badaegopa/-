@@ -345,8 +345,10 @@
   .wit .wl{flex:1;min-width:0;}
   .wit .w1{font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .wit .w2{font-size:10.5px;color:var(--dim);margin-top:2px;}
-  .wit .amt{font-size:13px;font-weight:900;color:var(--gold-2);
-    font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .wit .amt{font-size:13px;font-weight:900;color:var(--gold-2);text-align:right;
+    font-variant-numeric:tabular-nums;white-space:nowrap;display:flex;
+    flex-direction:column;align-items:flex-end;gap:2px;}
+  .wit .amtsub{font-size:9.5px;font-weight:600;color:#7a8f81;}
   .wit .tag{font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;margin-left:5px;
     background:rgba(255,255,255,.10);color:#8ba193;vertical-align:middle;}
   .rkbadge{display:inline-block;font-size:10px;font-weight:900;padding:2px 6px;border-radius:5px;
@@ -589,7 +591,8 @@
   <div class="card">
     <h2>🌒 해가 저물었다</h2>
     <p class="sub" id="failSub"></p>
-    <button class="cta" id="windBtn">🍃 숲의 바람에 맡기기</button>
+    <button class="cta" id="adStepBtn">📺 광고 보고 걸음 +6</button>
+    <button class="ghost" id="windBtn">🍃 숲의 바람에 맡기기</button>
     <button class="ghost" id="failAgainBtn">🔁 처음부터 다시 도전</button>
   </div>
 </div>
@@ -631,7 +634,9 @@
 <!-- 당첨 명예의 전당 -->
 <div class="modal" id="lbModal">
   <div class="card">
-    <h2>🏆 당첨 명예의 전당</h2>
+    <h2>🎯 적중 명예의 전당</h2>
+    <p class="sub" style="margin-bottom:14px">앱이 발행한 번호가 회차 당첨번호와<br>
+    몇 개 맞았는지의 기록입니다</p>
     <div class="drawbox" id="drawBox"></div>
     <div class="tabs">
       <button class="tab on" id="tabRound">이번 회차</button>
@@ -682,8 +687,9 @@
 <div class="modal" id="histModal">
   <div class="card">
     <h2>🎫 내 티켓함</h2>
-    <p class="sub">이 기기에 저장된 최근 30장 · 추첨이 끝나면 결과가 자동으로 표시됩니다<br>
-    <span style="color:#6f8478">서버 연결 전에는 모의 추첨으로 채점됩니다</span></p>
+    <p class="sub">추첨이 끝나면 결과가 자동으로 표시됩니다<br>
+    <span style="color:#6f8478">원본은 최근 1회차분만 보관하고, 이후에는 회차·등수·적중 개수만 남깁니다<br>
+    서버 연결 전에는 모의 추첨으로 채점됩니다</span></p>
     <div class="hist" id="histList"></div>
     <button class="cta" id="histClose">닫기</button>
     <button class="ghost" id="histClear">티켓 전체 삭제</button>
@@ -801,13 +807,14 @@ const GRADES = {
 const GRADE_MIX = { low: 24, mid: 14, high: 7 };   // 45개 분포
 const DICE_COUNT = 6;                              // 오솔길 중간에 끼우는 주사위 상자
 const DICE_CHAIN_MAX = 3;                          // 연속 주사위 상한 (무한 이동 방지)
-const GOLD_CAP  = 8;
+const MAP_GOLD_MAX = 6;    /* 별을 아무리 모아도 한 판 숲에 놓이는 황금 상자는 6개까지 */
+const AD_STEPS     = 6;    /* 걸음이 막혔을 때 광고 1회로 받는 걸음 */
 
 /* 광고로 모은 행운의 상자 (브라우저에 저장) */
 const GKEY = 'forest-gold-boxes-v1';
 let goldStock = 0;
-function loadGold(){
-  try { return clamp(parseInt(localStorage.getItem(GKEY) || '0', 10) || 0, 0, GOLD_CAP); }
+function loadGold(){                       /* 보유 개수에 상한을 두지 않는다 */
+  try { return Math.max(0, parseInt(localStorage.getItem(GKEY) || '0', 10) || 0); }
   catch(e){ return 0; }
 }
 function saveGold(){ try { localStorage.setItem(GKEY, String(goldStock)); } catch(e){} }
@@ -816,6 +823,7 @@ function saveGold(){ try { localStorage.setItem(GKEY, String(goldStock)); } catc
 let nodes = [], edges = [], entrance = null;
 let cur = null, steps = 0, maxSteps = 0, opened = [];
 let pending = null, skipped = 0;      // 담기/지나치기 결정 대기 노드, 지나친 상자 수
+let adSteps = 0;                      // 이번 판에 광고로 받은 걸음
 let forced = null;                    // 주사위로 끌려가는 중 { left, from }
 let diceChain = 0, diceRolls = 0;     // 연속 주사위 횟수 / 한 판 총 굴림
 let buff = BUFFS.normal;
@@ -910,7 +918,7 @@ function genMap(){
   }
   nodes.forEach((n,i) => { n.grade = GRADES[gpool[i]]; });
 
-  let gleft = Math.min(goldStock, GOLD_CAP);
+  let gleft = Math.min(goldStock, MAP_GOLD_MAX);
   const order = nodes.map((_,i) => i);
   for (let i=order.length-1; i>0; i--){
     const j = Math.floor(Math.random()*(i+1));
@@ -1102,7 +1110,7 @@ function startRun(keepBuff){
   steps = maxSteps = buff.steps;
   opened = []; moveCount = 0; finished = false; mover = null;
   pending = null; skipped = 0; hideChoice();
-  forced = null; diceChain = 0; diceRolls = 0;
+  forced = null; diceChain = 0; diceRolls = 0; adSteps = 0;
   el('diceLayer').classList.remove('on');
   document.body.classList.remove('dicing');
   overview = false; freeLook = false; targetVS = followScale();
@@ -1355,9 +1363,13 @@ function checkStuck(){
   const ok = cur.adj.some(l => edgeCost(l.e) <= steps);
   if (!ok){
     running = false;
+    const goldLeft = nodes.filter(n => n.grade && n.grade.key === 'gold' && !n.opened).length;
     el('failSub').innerHTML =
-      '걸음이 다했습니다. 상자는 <b style="color:#f6dda1">' + opened.length + ' / ' + GOAL + '</b>개를 열었습니다.<br>' +
-      '숲의 바람에 맡기면 남은 ' + (GOAL - opened.length) + '개를 아직 열지 않은 상자 중에서 무작위로 채웁니다.';
+      '걸음이 다했습니다. 상자는 <b style="color:#f6dda1">' + opened.length + ' / ' + GOAL + '</b>개를 열었습니다.' +
+      (goldLeft ? '<br>숲에 <b style="color:#f6dda1">⭐ 황금 상자 ' + goldLeft + '개</b>가 아직 남아 있습니다.' : '') +
+      '<br>광고를 보면 <b style="color:#f6dda1">걸음 ' + AD_STEPS + '보</b>를 받아 이어서 갈 수 있습니다.<br>' +
+      '<span style="font-size:11.5px">바람에 맡기면 남은 ' + (GOAL - opened.length) +
+      '개를 아직 열지 않은 상자 중에서 무작위로 채웁니다.</span>';
     openModal('failModal');
   }
 }
@@ -1373,7 +1385,9 @@ function finish(byWind){
   const date = now.getFullYear() + '-' + p2(now.getMonth()+1) + '-' + p2(now.getDate()) +
                ' ' + p2(now.getHours()) + ':' + p2(now.getMinutes());
   const round = nextRound(Date.now());
-  lastResult = { main: nums, date, round, checked:false, rank:0, prize:0,
+  const issuedAt = Date.now();
+  lastResult = { main: nums, date, round, id: issueId(), issuedAt,
+                 checked:false, rank:0, hit:0, prize:0,
                  buff: buff.name, em: buff.em, skipped,
                  moves: moveCount, left: steps, sec: Math.round(elapsed), wind: !!byWind };
   saveHistory(lastResult);
@@ -1387,13 +1401,16 @@ function finish(byWind){
   if (skipped >= 5) unlockAch('picky');
   if (!byWind && steps <= 2) unlockAch('shoestring');
   if (loadHistory().length >= 5) unlockAch('veteran');
+  bumpIssued();
   Lotto.submitTicket(lastResult);
+  cloudSync();
 
   el('resultBalls').innerHTML = nums.map(ballHTML).join('');
   el('resultMeta').innerHTML =
     '<b style="color:#8a7f66">제 ' + round + '회 응모</b> · 추첨 ' + fmtDate(drawTimeOf(round)) + '<br>' +
     date + '<br>' + buff.em + ' ' + buff.name + ' · 이동 ' + moveCount + '회 · 지나친 상자 ' +
     skipped + '개' + (diceRolls ? ' · 🎲 ' + diceRolls + '번' : '') +
+    (adSteps ? ' · 📺 걸음 +' + adSteps : '') +
     ' · 남은 걸음 ' + steps + '보 · ' + fmtTime(elapsed);
   setTimeout(() => openModal('resultModal'), byWind ? 200 : 900);
 }
@@ -2115,13 +2132,15 @@ async function renderHistory(){
     let stat = '';
     if (!r.round) stat = '';
     else if (!r.checked) stat = '<span class="tstat wait">추첨 대기</span>';
-    else if (r.rank)     stat = '<span class="tstat win">' + RANK_NAME[r.rank] + ' ' + won(r.prize) + '</span>' +
+    else if (r.rank)     stat = '<span class="tstat win">' + RANK_NAME[r.rank] + ' · ' +
+                                (r.hit||0) + '개 적중 · ' + won(r.prize) + '</span>' +
                                 (r.mock ? ' <span class="tag">모의</span>' : '');
-    else                 stat = '<span class="tstat lose">낙첨</span>' +
+    else                 stat = '<span class="tstat lose">낙첨' +
+                                (r.hit ? ' · ' + r.hit + '개 적중' : '') + '</span>' +
                                 (r.mock ? ' <span class="tag">모의</span>' : '');
     return '<div class="hitem"><div class="hdate">' +
       (r.round ? '<b style="color:#f6dda1">' + r.round + '회</b> · ' : '') +
-      r.date + ' · ' + (r.em||'') + ' ' + (r.buff||'') + (r.wind ? ' · 🍃 바람' : '') +
+      (r.id ? '#' + r.id + ' · ' : '') + r.date + ' · ' + (r.em||'') + ' ' + (r.buff||'') + (r.wind ? ' · 🍃 바람' : '') +
       '</div>' + (stat ? '<div class="hstat">' + stat + '</div>' : '') +
       '<div class="balls">' + r.main.map(ballHTML).join('') + '</div></div>';
   }).join('');
@@ -2276,37 +2295,82 @@ const Lotto = {
 
 /* ---------- 채점 ---------- */
 const RANK_NAME = { 1:'1등', 2:'2등', 3:'3등', 4:'4등', 5:'5등' };
-function rankOf(nums, r){
+function matchOf(nums, r){
   const hit = nums.filter(n => r.nums.includes(n)).length;
   const bo  = nums.includes(r.bonus);
-  if (hit === 6) return 1;
-  if (hit === 5 && bo) return 2;
-  if (hit === 5) return 3;
-  if (hit === 4) return 4;
-  if (hit === 3) return 5;
-  return 0;
+  let rank = 0;
+  if (hit === 6) rank = 1;
+  else if (hit === 5 && bo) rank = 2;
+  else if (hit === 5) rank = 3;
+  else if (hit === 4) rank = 4;
+  else if (hit === 3) rank = 5;
+  return { rank, hit, bonus: bo };
+}
+const rankOf = (nums, r) => matchOf(nums, r).rank;
+
+/* 발행 증명 — 추첨 전에 번호를 기록해 두었다는 표식.
+   서버에 붙기 전에는 기기 안 값이라 표시용이고, 서버가 발행 시각을
+   보관해야 비로소 '사후 조작이 아님'의 증거가 된다. */
+function issueId(){
+  const a = new Uint8Array(4);
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
+  else for (let i=0; i<4; i++) a[i] = Math.floor(Math.random()*256);
+  return Array.from(a, x => x.toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+function issuedAgo(t, round){
+  const gap = drawTimeOf(round) - t;
+  if (gap <= 0) return '추첨 후 발행';
+  const d = Math.floor(gap / 86400000);
+  const h = Math.floor(gap / 3600000);
+  return d >= 1 ? '추첨 ' + d + '일 전 발행' : '추첨 ' + Math.max(h,1) + '시간 전 발행';
 }
 
 /* ---------- 명예의 전당 ---------- */
-const WKEY = 'forest-winners-v1';
-const MOCK_NAMES = ['솔바람','달빛나그네','초록발자국','이슬맺힘','밤샘탐험가',
-                    '느린걸음','등불지기','첫숲','안개골','솔방울'];
-/* 서버 연결 전에는 회차마다 고정된 모의 당첨자를 채워 화면을 보여준다 */
-function mockWinners(round, r){
-  const rnd = seeded(round * 7919 + 13);
-  const out = [], n = 3 + Math.floor(rnd()*3);
-  for (let i=0; i<n; i++){
-    const x = rnd();
-    const rank = x < .05 ? 2 : x < .22 ? 3 : x < .58 ? 4 : 5;
-    out.push({ round, name: MOCK_NAMES[Math.floor(rnd()*MOCK_NAMES.length)],
-               rank, prize: r.prize[rank], mock: true });
+/* =====================================================================
+   보관 정책
+   ---------------------------------------------------------------------
+   · 티켓 원본(번호 6개 · 발행 번호 · 발행 시각)은 **최근 1회차분만** 보관한다.
+     다음 회차가 추첨되면 폐기하고, 아래 한 줄짜리 로그만 남긴다.
+   · 적중 로그 = { r: 회차, k: 등수, h: 적중 개수 }  — 한 건 30바이트 안팎.
+     회차가 지날 때마다 한 줄씩 쌓이므로 용량이 사실상 늘지 않는다.
+   · 금액은 저장하지 않는다. 회차 정보에서 등수로 다시 구한다.
+   · 발행 증명(#번호·발행 시각)은 원본이 살아 있는 동안만 표시된다.
+   ===================================================================== */
+const LOGKEY = 'forest-hitlog-v1';     /* 적중 로그 (누적·영구) */
+const ISKEY  = 'forest-issued-v1';     /* 발행 누계 카운터 */
+const WKEY   = 'forest-winners-v1';    /* 구버전 키 — 1회 이관 후 삭제 */
+
+const hitLog   = () => readJSON(LOGKEY, []);
+const issuedNo = () => readJSON(ISKEY, { n:0 }).n;
+function bumpIssued(){ writeJSON(ISKEY, { n: issuedNo() + 1 }); }
+
+/* 구버전(WKEY) 기록을 로그로 옮기고 지운다 */
+(function migrateWinners(){
+  const old = readJSON(WKEY, null);
+  if (!old || !old.length) { try { localStorage.removeItem(WKEY); } catch(e){} return; }
+  const log = hitLog();
+  for (const w of old) if (w && w.round && w.rank) log.push({ r:w.round, k:w.rank, h:w.hit||0 });
+  writeJSON(LOGKEY, log);
+  try { localStorage.removeItem(WKEY); } catch(e){}
+})();
+
+/* 오래된 티켓 원본을 로그 한 줄로 압축하고 폐기 */
+function compactTickets(){
+  const cur = drawnRounds(Date.now());
+  const keepFrom = cur;                     /* 가장 최근 추첨 회차 1주차분만 원본 보관 */
+  const list = loadHistory();
+  const keep = [], log = hitLog();
+  let dropped = 0;
+  for (const t of list){
+    if (!t.round){ dropped++; continue; }               /* 회차 없는 구기록은 폐기 */
+    if (t.round >= keepFrom || !t.checked){ keep.push(t); continue; }
+    if (t.rank) log.push({ r: t.round, k: t.rank, h: t.hit || 0 });
+    dropped++;
   }
-  return out;
-}
-function recordWinner(w){
-  const list = readJSON(WKEY, []);
-  list.push(w);
-  writeJSON(WKEY, list.slice(-300));
+  if (!dropped) return 0;
+  writeJSON(LOGKEY, log);
+  try { localStorage.setItem(HKEY, JSON.stringify(keep)); } catch(e){}
+  return dropped;
 }
 
 /* ---------- 티켓 채점 (앱 실행 시·명예의 전당 열 때) ---------- */
@@ -2320,23 +2384,46 @@ async function checkTickets(){
     if (now < drawTimeOf(t.round)) continue;              /* 아직 추첨 전 */
     const r = await Lotto.round(t.round);
     if (!r) continue;
-    const rank = rankOf(t.main, r);
-    t.checked = true; t.rank = rank; t.prize = rank ? r.prize[rank] : 0;
+    const m = matchOf(t.main, r);
+    t.checked = true; t.rank = m.rank; t.hit = m.hit;
+    t.prize = m.rank ? r.prize[m.rank] : 0;
     t.mock = !!r.mock;
     changed = true;
-    if (rank){
-      recordWinner({ round: t.round, name: Play.name(), rank,
-                     prize: t.prize, me: true, mock: !!r.mock, at: now });
-      fresh.push(t);
-      unlockAch('first_win');
-    }
+    if (m.rank){ fresh.push(t); unlockAch('first_win'); }
   }
   if (changed){ try { localStorage.setItem(HKEY, JSON.stringify(list)); } catch(e){} }
+  compactTickets();
+  if (changed){
+    const b = bestHitScore();
+    if (b.score) Play.submitScore(b.score, b.tag);
+    cloudSync();
+  }
   return fresh;
 }
 
 /* ---------- 화면 ---------- */
 let lbTab = 'round';
+
+/* 순위 행 = 적중 로그 + (원본이 남아 있으면) 발행 증명 */
+async function boardRows(scope, last){
+  const server = await Lotto.winners(scope === 'round' ? last : null);
+  if (server) return server;
+
+  const rows = hitLog().map(e => ({ round:e.r, rank:e.k, hit:e.h, me:true, name:Play.name() }));
+  for (const t of loadHistory())
+    if (t.round && t.checked && t.rank)
+      rows.push({ round:t.round, rank:t.rank, hit:t.hit||0, me:true, name:Play.name(),
+                  id:t.id, issuedAt:t.issuedAt });
+
+  const out = scope === 'round' ? rows.filter(r => r.round === last) : rows;
+  for (const r of out){                       /* 금액은 저장하지 않고 회차에서 되찾는다 */
+    const rd = await Lotto.round(r.round);
+    r.prize = rd.prize[r.rank] || 0;
+    r.mock  = !!rd.mock;
+  }
+  return out;
+}
+
 async function renderLB(){
   await checkTickets();
   const now = Date.now();
@@ -2354,47 +2441,43 @@ async function renderLB(){
       '<span class="plus">+</span>' + ballHTML(r.bonus) + '</div>';
   }
 
-  const server = await Lotto.winners(lbTab === 'round' ? last : null);
-  let rows;
-  if (server) rows = server;
-  else {
-    const mine = readJSON(WKEY, []);
-    const pool = lbTab === 'round'
-      ? mine.filter(w => w.round === last).concat(last >= 1 ? mockWinners(last, await Lotto.round(last)) : [])
-      : mine.concat();
-    if (lbTab === 'all'){
-      /* 누적: 최근 8회차분 모의 당첨자를 함께 쌓아 보여준다 */
-      for (let n = last; n > last - 8 && n >= 1; n--)
-        pool.push(...mockWinners(n, await Lotto.round(n)));
-    }
-    rows = pool;
-  }
-  rows = rows.slice().sort((a,b) => b.prize - a.prize).slice(0, 5);
+  const rows = (await boardRows(lbTab, last))
+    .sort((a,b) => (b.hit||0) - (a.hit||0) || a.rank - b.rank || b.round - a.round)
+    .slice(0, 5);
 
   el('lbList').innerHTML = rows.length ? rows.map((w,i) =>
     '<div class="wit' + (w.me ? ' me' : '') + '"><span class="rk">' + (i+1) + '</span>' +
     '<span class="wl"><div class="w1">' +
     '<span class="rkbadge r' + w.rank + '">' + RANK_NAME[w.rank] + '</span> ' +
-    (w.me ? Play.name() + ' (나)' : w.name) +
-    (w.mock ? ' <span class="tag">모의</span>' : '') + '</div>' +
-    '<div class="w2">' + w.round + '회 당첨</div></span>' +
-    '<span class="amt">' + won(w.prize) + '</span></div>').join('')
-    : '<div class="empty">아직 이 회차 당첨자가 없습니다.</div>';
+    (w.me ? Play.name() + ' (나)' : w.name) + '</div>' +
+    '<div class="w2">' + w.round + '회 · <b>' + (w.hit || 0) + '개 적중</b>' +
+    (w.issuedAt ? ' · ' + issuedAgo(w.issuedAt, w.round) : '') +
+    (w.id ? ' · #' + w.id : '') + '</div></span>' +
+    '<span class="amt">' + won(w.prize) +
+    '<span class="amtsub">회차 ' + RANK_NAME[w.rank] + ' 수령액</span></span></div>').join('')
+    : '<div class="empty">' + (lbTab === 'round'
+        ? '이 회차에 적중 기록이 없습니다.'
+        : '아직 적중 기록이 없습니다.') +
+      '<br><span style="font-size:11.5px">' +
+      (API_BASE ? '' : '서버 연결 전에는 이 기기의 기록만 표시됩니다.') + '</span></div>';
 
-  /* 내 티켓 요약 */
-  const mineT = loadHistory().filter(t => t.round);
-  const waiting = mineT.filter(t => !t.checked).length;
-  const winsT   = mineT.filter(t => t.rank).length;
-  const total   = mineT.reduce((a,t) => a + (t.prize||0), 0);
-  el('myTicketSum').innerHTML = mineT.length
-    ? '내 티켓 <b>' + mineT.length + '장</b> · 추첨 대기 <b>' + waiting +
-      '</b> · 당첨 <b>' + winsT + '</b>' + (total ? ' · 누적 <b>' + won(total) + '</b>' : '')
-    : '아직 발행한 티켓이 없습니다. 한 판 끝내면 이번 회차 티켓이 만들어집니다.';
+  const raw = loadHistory().filter(t => t.round);
+  const waiting = raw.filter(t => !t.checked).length;
+  const logged  = hitLog().length;
+  const winsNow = raw.filter(t => t.rank).length;
+  el('myTicketSum').innerHTML =
+    '발행 누계 <b>' + issuedNo() + '장</b> · 적중 <b>' + (logged + winsNow) + '건</b>' +
+    (waiting ? ' · 추첨 대기 <b>' + waiting + '장</b>' : '') +
+    '<br><span style="font-size:10.5px;color:#6f8478">티켓 원본은 <b>최근 1회차분만</b> 보관하고, ' +
+    '다음 회차가 추첨되면 <b>회차·등수·적중 개수</b> 로그만 남깁니다</span>';
 
-  el('lbDisc').innerHTML = API_BASE
-    ? '서버에 기록된 실제 이용자 순위입니다.'
-    : '⚠️ 서버 연결 전이라 <b>모의 추첨 결과</b>와 <b>모의 이용자</b>가 섞여 있습니다. ' +
-      '실제 동행복권 당첨번호·당첨금이 아닙니다. 서버를 붙이면 실제 회차 결과로 바뀝니다.';
+  el('lbDisc').innerHTML =
+    '이 앱은 <b>복권을 판매하지 않고 당첨금도 지급하지 않습니다.</b> 순위는 앱이 발행한 ' +
+    '번호가 회차 당첨번호와 몇 개 맞았는지에 대한 기록이며, <b>실제 구매·수령 여부는 ' +
+    '확인하지 않습니다.</b> 금액은 그 회차에 공표된 등수별 수령액입니다.' +
+    (API_BASE ? '' : '<br>⚠️ 서버 연결 전이라 <b>모의 추첨</b>으로 채점되며 ' +
+      '실제 동행복권 당첨번호가 아닙니다. 발행 증명(#번호·발행 시각)도 서버가 보관해야 ' +
+      '효력이 생깁니다.');
 }
 function setTab(t){
   lbTab = t;
@@ -2412,6 +2495,10 @@ const Play = {
     if (NATIVE) return window.AndroidBridge.signIn();       /* ← 실제: Play Games v2 */
     this.signedIn = true; writeJSON(SKEY, { in:true });
     updatePlayUI(); toast('Play 게임즈에 로그인했습니다 (목업)');
+    this.cloudLoad().then(d => {
+      if (applyCloud(d)){ updateGoldUI(); toast('계정에 저장된 기록을 불러왔습니다'); }
+      cloudSync();
+    });
   },
   signOut(){
     if (NATIVE) return window.AndroidBridge.signOut();
@@ -2421,8 +2508,23 @@ const Play = {
   unlockAchievement(id){
     if (NATIVE) window.AndroidBridge.unlockAchievement(id); /* ← 실제: AchievementsClient.unlock */
   },
-  submitScore(v){
-    if (NATIVE) window.AndroidBridge.submitScore(v);        /* ← 실제: LeaderboardsClient.submitScore */
+  /* 리더보드 — 서버 없이 전 세계 순위를 얻는 통로.
+     점수는 정수 하나뿐이라 '최고 적중'을 60/51/50/40/30 으로 인코딩해 올린다.
+     tag 는 짧은 메타 문자열(회차 등)로, 길이 제한이 있으니 짧게 유지한다. */
+  submitScore(v, tag){
+    if (NATIVE) window.AndroidBridge.submitScore(v, tag || '');
+  },
+  /* 저장된 게임(Snapshots) — 별 보유량·적중 로그·업적을 계정에 묶는다.
+     기기를 바꾸거나 재설치해도 복원된다. 로그인해야 동작한다. */
+  cloudSave(payload){
+    if (NATIVE && this.signedIn) window.AndroidBridge.saveGame(JSON.stringify(payload));
+  },
+  cloudLoad(){
+    if (NATIVE && this.signedIn) return new Promise(res => {
+      window.onGameLoaded = j => { try { res(JSON.parse(j)); } catch(e){ res(null); } };
+      window.AndroidBridge.loadGame();
+    });
+    return Promise.resolve(null);
   },
   /* 리워드 광고: 끝까지 본 경우에만 resolve('rewarded') */
   showRewardedAd(){
@@ -2444,6 +2546,52 @@ function updatePlayUI(){
     ? '업적과 순위표가 계정에 저장됩니다.'
     : '로그인하면 업적과 순위표가 계정에 저장됩니다.';
   el('signBtn').textContent = Play.signedIn ? '로그아웃' : '로그인';
+}
+
+/* ---------- 계정 저장소 동기화 ----------
+   Play Games 저장된 게임에 올릴 묶음. 번호 원본은 보관 정책대로
+   최근 1회차분만 들어간다. */
+function cloudPayload(){
+  return { v:1, gold: goldStock, issued: issuedNo(),
+           log: hitLog(), ach: achDone, tickets: loadHistory() };
+}
+function applyCloud(d){
+  if (!d || d.v !== 1) return false;
+  let changed = false;
+  if (typeof d.gold === 'number' && d.gold > goldStock){
+    goldStock = d.gold; saveGold(); changed = true;
+  }
+  if (typeof d.issued === 'number' && d.issued > issuedNo()){
+    writeJSON(ISKEY, { n: d.issued }); changed = true;
+  }
+  if (Array.isArray(d.log) && d.log.length > hitLog().length){
+    writeJSON(LOGKEY, d.log); changed = true;
+  }
+  if (d.ach){
+    for (const k in d.ach) if (!achDone[k]){ achDone[k] = d.ach[k]; changed = true; }
+    writeJSON(AKEY, achDone);
+  }
+  if (Array.isArray(d.tickets) && d.tickets.length > loadHistory().length){
+    try { localStorage.setItem(HKEY, JSON.stringify(d.tickets)); } catch(e){}
+    changed = true;
+  }
+  return changed;
+}
+let syncTimer = null;
+function cloudSync(){                       /* 잦은 저장을 눌러 모아서 올린다 */
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => Play.cloudSave(cloudPayload()), 1200);
+}
+/* 리더보드 점수 = 최고 적중 (6개=60 · 5+보너스=51 · 5개=50 · 4개=40 · 3개=30) */
+function bestHitScore(){
+  const all = hitLog().concat(
+    loadHistory().filter(t => t.rank).map(t => ({ r:t.round, k:t.rank, h:t.hit||0 })));
+  let best = 0, tag = '';
+  for (const e of all){
+    const v = (e.h||0) * 10 + (e.k === 2 ? 1 : 0);
+    if (v > best){ best = v; tag = e.r + '회'; }
+  }
+  return { score: best, tag };
 }
 
 /* ---------- 리워드 광고 목업 ---------- */
@@ -2485,15 +2633,35 @@ function endAd(result){
   if (r) r(result);
 }
 
+/* 걸음이 막혔을 때 — 광고 1회로 AD_STEPS 만큼 이어 간다 */
+async function watchAdForSteps(){
+  audio();
+  const r = await Play.showRewardedAd();
+  if (r !== 'rewarded'){
+    toast(r === 'nofill' ? '지금은 볼 수 있는 광고가 없습니다. 잠시 뒤 다시 시도해 주세요.'
+        : r === 'error'  ? '광고를 불러오지 못했습니다. 네트워크를 확인해 주세요.'
+        : '광고를 끝까지 봐야 걸음을 받을 수 있습니다');
+    return;
+  }
+  steps += AD_STEPS;
+  adSteps += AD_STEPS;
+  closeModal('failModal');
+  running = true;
+  sfxDone();
+  updateHUD();
+  toast('👣 걸음 <b>+' + AD_STEPS + '</b> · 다시 걸을 수 있습니다');
+  checkStuck();                      /* 그래도 못 가면 다시 안내한다 */
+}
+
 async function watchAd(){
-  if (goldStock >= GOLD_CAP){ toast('행운의 상자가 가득 찼습니다 (최대 ' + GOLD_CAP + '개)'); return; }
   audio();
   const r = await Play.showRewardedAd();
   if (r === 'rewarded'){
-    goldStock = Math.min(GOLD_CAP, goldStock + 1);
-    saveGold(); updateGoldUI();
+    goldStock = goldStock + 1;
+    saveGold(); updateGoldUI(); cloudSync();
     sfxDone();
-    toast('⭐ 행운의 상자를 받았습니다! 지금 ' + goldStock + '개 · 다음 판 숲에 놓입니다');
+    toast('⭐ 행운의 상자를 받았습니다! 지금 ' + goldStock + '개' +
+          (goldStock > MAP_GOLD_MAX ? ' (한 판에는 ' + MAP_GOLD_MAX + '개까지 놓입니다)' : ''));
   } else if (r === 'nofill'){
     toast('지금은 볼 수 있는 광고가 없습니다. 잠시 뒤 다시 시도해 주세요.');
   } else if (r === 'error'){
@@ -2505,10 +2673,12 @@ async function watchAd(){
 
 function updateGoldUI(){
   el('goldCount').textContent = '행운의 상자 ' + goldStock + '개';
-  el('goldNote').innerHTML = goldStock >= GOLD_CAP
-    ? '가득 찼습니다 (최대 ' + GOLD_CAP + '개). 숲에 놓고 담아서 쓰세요.'
-    : '광고를 보면 1개씩 쌓입니다. 모은 만큼 숲에 <b>황금 상자</b>로 놓입니다.';
-  el('adBtn1').disabled = goldStock >= GOLD_CAP;
+  el('goldNote').innerHTML = goldStock > MAP_GOLD_MAX
+    ? '보유는 제한이 없습니다. 다만 한 판 숲에는 <b>' + MAP_GOLD_MAX +
+      '개까지</b> 놓이고, 담지 못한 상자는 다음 판에 다시 놓입니다.'
+    : '광고를 보면 1개씩 쌓입니다. 모은 만큼 숲에 <b>황금 상자</b>로 놓입니다 (한 판 최대 ' +
+      MAP_GOLD_MAX + '개).';
+  el('adBtn1').disabled = false;
   const chip = el('goldChip');
   chip.style.display = goldStock > 0 ? '' : 'none';
   chip.innerHTML = '⭐ 행운의 상자 <span>' + goldStock + '개</span>';
@@ -2542,7 +2712,7 @@ el('devFrame').addEventListener('change', e => {
   setTimeout(resize, 60);
 });
 el('devReset').addEventListener('click', () => {
-  try { [HKEY, GKEY, AKEY, LKEY, SKEY, WKEY].forEach(k => localStorage.removeItem(k)); } catch(e){}
+  try { [HKEY, GKEY, AKEY, LKEY, SKEY, WKEY, LOGKEY, ISKEY].forEach(k => localStorage.removeItem(k)); } catch(e){}
   goldStock = 0; achDone = {};
   updateGoldUI(); updatePlayUI();
   toast('저장 데이터를 초기화했습니다');
@@ -2567,7 +2737,9 @@ function renderGradeLegend(){
   const rows = ['low','mid','high','gold'].map(k => {
     const g = GRADES[k];
     const cnt = k === 'gold'
-      ? (goldStock ? goldStock + '개 놓임' : '없음 (광고로 획득)')
+      ? (goldStock ? Math.min(goldStock, MAP_GOLD_MAX) + '개 놓임' +
+                     (goldStock > MAP_GOLD_MAX ? ' (보유 ' + goldStock + ')' : '')
+                   : '없음 (광고로 획득)')
       : GRADE_MIX[k] + '개';
     return '<div class="bl"><span class="k" style="color:' + g.trim + '">' +
            g.label + ' ' + g.name + '</span><span class="v">' + g.desc +
@@ -2613,6 +2785,7 @@ el('reAskBtn').addEventListener('click', () => {
   running = false;
 });
 el('failAgainBtn').addEventListener('click', () => startRun(true));
+el('adStepBtn').addEventListener('click', watchAdForSteps);
 el('windBtn').addEventListener('click', windFill);
 el('takeBtn').addEventListener('click', takeChest);
 el('skipBtn').addEventListener('click', skipChest);
@@ -2686,10 +2859,10 @@ setTimeout(async () => {
   if (!fresh.length) return;
   const best = fresh.reduce((a,b) => a.prize > b.prize ? a : b);
   let sum = 0; for (const f of fresh) sum += f.prize;
-  Play.submitScore(loadHistory().reduce((a,t) => a + (t.prize||0), 0));
-  toast('🎉 ' + best.round + '회 <b>' + RANK_NAME[best.rank] + '</b> 당첨! ' +
-        won(sum) + (fresh.length > 1 ? ' (' + fresh.length + '장)' : '') +
-        (best.mock !== false && !API_BASE ? '<br><span style="font-size:11px;color:#9cb3a4">모의 추첨 결과입니다</span>' : ''));
+  const bs = bestHitScore(); if (bs.score) Play.submitScore(bs.score, bs.tag);
+  toast('🎯 ' + best.round + '회 <b>' + RANK_NAME[best.rank] + '</b> 적중! (' +
+        (best.hit||0) + '개)' + (fresh.length > 1 ? ' · 총 ' + fresh.length + '장' : '') +
+        (API_BASE ? '' : '<br><span style="font-size:11px;color:#9cb3a4">모의 추첨 결과입니다</span>'));
 }, 2200);
 /* 앱 실행 느낌의 스플래시 — 목업에서는 1.3초 뒤 사라진다 */
 setTimeout(() => el('splash').classList.add('gone'), 1300);

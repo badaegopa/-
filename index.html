@@ -324,6 +324,45 @@
   .achit .a2{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.5;}
   .achit .ac{font-size:11px;font-weight:900;color:#4bb98a;}
 
+  /* 당첨 회차 · 명예의 전당 */
+  .drawbox{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:16px;
+    padding:13px 12px;margin-bottom:12px;}
+  .drawbox .dh{font-size:11.5px;color:var(--dim);margin-bottom:10px;font-weight:700;}
+  .drawbox .dh b{color:var(--gold-2);font-size:13px;}
+  .drawbox .balls{gap:5px;flex-wrap:nowrap;}
+  .drawbox .balls .ball{width:min(34px,10vw);height:min(34px,10vw);font-size:clamp(11px,3.4vw,14px);}
+  .drawbox .plus{font-size:14px;margin:0;}
+  .drawbox .pend{font-size:12.5px;color:var(--dim);line-height:1.7;padding:6px 0;}
+  .tabs{display:flex;gap:7px;margin-bottom:11px;}
+  .tab{flex:1;padding:9px;border-radius:11px;font-size:12.5px;font-weight:800;
+    background:transparent;border:1px solid var(--line);color:var(--dim);}
+  .tab.on{background:rgba(233,196,106,.14);color:var(--gold-2);border-color:var(--gold);}
+  .wit{display:flex;gap:10px;align-items:center;background:rgba(0,0,0,.26);
+    border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:10px 12px;margin-bottom:7px;}
+  .wit.me{border-color:var(--gold);background:rgba(233,196,106,.10);}
+  .wit .rk{width:24px;font-size:13px;font-weight:900;color:var(--dim);text-align:center;}
+  .wit.me .rk{color:var(--gold-2);}
+  .wit .wl{flex:1;min-width:0;}
+  .wit .w1{font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .wit .w2{font-size:10.5px;color:var(--dim);margin-top:2px;}
+  .wit .amt{font-size:13px;font-weight:900;color:var(--gold-2);
+    font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .wit .tag{font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;margin-left:5px;
+    background:rgba(255,255,255,.10);color:#8ba193;vertical-align:middle;}
+  .rkbadge{display:inline-block;font-size:10px;font-weight:900;padding:2px 6px;border-radius:5px;
+    margin-right:5px;color:#1d1608;}
+  .r1{background:#f6dda1} .r2{background:#c8b4ff} .r3{background:#8fd3f4}
+  .r4{background:#9fd8a8} .r5{background:#c9c9c9}
+  .mysum{background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.07);border-radius:13px;
+    padding:11px 12px;margin-bottom:12px;font-size:12px;color:var(--dim);line-height:1.7;text-align:left;}
+  .mysum b{color:var(--gold-2);}
+  .hstat{margin-bottom:8px;}
+  .tstat{font-size:11px;font-weight:900;padding:3px 8px;border-radius:6px;
+    display:inline-block;white-space:nowrap;}
+  .tstat.wait{background:rgba(255,255,255,.09);color:#9cb3a4;}
+  .tstat.lose{background:rgba(255,255,255,.06);color:#6f8478;}
+  .tstat.win{background:rgba(233,196,106,.18);color:var(--gold-2);}
+
   /* 순위표 */
   .lbit{display:flex;gap:11px;align-items:center;background:rgba(0,0,0,.26);
     border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:10px 12px;margin-bottom:7px;}
@@ -589,13 +628,18 @@
   </div>
 </div>
 
-<!-- 순위표 -->
+<!-- 당첨 명예의 전당 -->
 <div class="modal" id="lbModal">
   <div class="card">
-    <h2>🏆 순위표</h2>
-    <p class="sub">남은 걸음이 많을수록 높은 점수 — 적게 걷고 여섯을 채운 사람이 위로 갑니다.</p>
+    <h2>🏆 당첨 명예의 전당</h2>
+    <div class="drawbox" id="drawBox"></div>
+    <div class="tabs">
+      <button class="tab on" id="tabRound">이번 회차</button>
+      <button class="tab" id="tabAll">누적</button>
+    </div>
     <div class="hist" id="lbList"></div>
-    <p class="disc">목업 순위표입니다. Play 게임즈 순위표를 연결하면 실제 전 세계 순위로 바뀝니다.</p>
+    <div class="mysum" id="myTicketSum"></div>
+    <p class="disc" id="lbDisc"></p>
     <button class="cta" id="lbClose">닫기</button>
   </div>
 </div>
@@ -637,11 +681,12 @@
 <!-- 5. 기록 -->
 <div class="modal" id="histModal">
   <div class="card">
-    <h2>📜 탐험 기록</h2>
-    <p class="sub">이 브라우저에 저장된 최근 30회</p>
+    <h2>🎫 내 티켓함</h2>
+    <p class="sub">이 기기에 저장된 최근 30장 · 추첨이 끝나면 결과가 자동으로 표시됩니다<br>
+    <span style="color:#6f8478">서버 연결 전에는 모의 추첨으로 채점됩니다</span></p>
     <div class="hist" id="histList"></div>
     <button class="cta" id="histClose">닫기</button>
-    <button class="ghost" id="histClear">기록 전체 삭제</button>
+    <button class="ghost" id="histClear">티켓 전체 삭제</button>
   </div>
 </div>
 
@@ -1327,7 +1372,9 @@ function finish(byWind){
   const p2 = n => String(n).padStart(2,'0');
   const date = now.getFullYear() + '-' + p2(now.getMonth()+1) + '-' + p2(now.getDate()) +
                ' ' + p2(now.getHours()) + ':' + p2(now.getMinutes());
-  lastResult = { main: nums, date, buff: buff.name, em: buff.em, skipped,
+  const round = nextRound(Date.now());
+  lastResult = { main: nums, date, round, checked:false, rank:0, prize:0,
+                 buff: buff.name, em: buff.em, skipped,
                  moves: moveCount, left: steps, sec: Math.round(elapsed), wind: !!byWind };
   saveHistory(lastResult);
 
@@ -1340,10 +1387,11 @@ function finish(byWind){
   if (skipped >= 5) unlockAch('picky');
   if (!byWind && steps <= 2) unlockAch('shoestring');
   if (loadHistory().length >= 5) unlockAch('veteran');
-  if (!byWind) submitScore(steps);
+  Lotto.submitTicket(lastResult);
 
   el('resultBalls').innerHTML = nums.map(ballHTML).join('');
   el('resultMeta').innerHTML =
+    '<b style="color:#8a7f66">제 ' + round + '회 응모</b> · 추첨 ' + fmtDate(drawTimeOf(round)) + '<br>' +
     date + '<br>' + buff.em + ' ' + buff.name + ' · 이동 ' + moveCount + '회 · 지나친 상자 ' +
     skipped + '개' + (diceRolls ? ' · 🎲 ' + diceRolls + '번' : '') +
     ' · 남은 걸음 ' + steps + '보 · ' + fmtTime(elapsed);
@@ -2056,13 +2104,27 @@ function fmtTime(sec){
 }
 let lastResult = null;
 
-function renderHistory(){
+async function renderHistory(){
+  await checkTickets();
   const h = loadHistory(), list = el('histList');
-  if (!h.length){ list.innerHTML = '<div class="empty">아직 기록이 없습니다.<br>첫 탐험을 떠나보세요.</div>'; return; }
-  list.innerHTML = h.map(r =>
-    '<div class="hitem"><div class="hdate">' + r.date + ' · ' + (r.em||'') + ' ' + (r.buff||'') +
-    (r.wind ? ' · 🍃 바람' : '') + '</div><div class="balls">' + r.main.map(ballHTML).join('') + '</div></div>'
-  ).join('');
+  if (!h.length){
+    list.innerHTML = '<div class="empty">아직 발행한 티켓이 없습니다.<br>한 판 끝내면 이번 회차 티켓이 만들어집니다.</div>';
+    return;
+  }
+  list.innerHTML = h.map(r => {
+    let stat = '';
+    if (!r.round) stat = '';
+    else if (!r.checked) stat = '<span class="tstat wait">추첨 대기</span>';
+    else if (r.rank)     stat = '<span class="tstat win">' + RANK_NAME[r.rank] + ' ' + won(r.prize) + '</span>' +
+                                (r.mock ? ' <span class="tag">모의</span>' : '');
+    else                 stat = '<span class="tstat lose">낙첨</span>' +
+                                (r.mock ? ' <span class="tag">모의</span>' : '');
+    return '<div class="hitem"><div class="hdate">' +
+      (r.round ? '<b style="color:#f6dda1">' + r.round + '회</b> · ' : '') +
+      r.date + ' · ' + (r.em||'') + ' ' + (r.buff||'') + (r.wind ? ' · 🍃 바람' : '') +
+      '</div>' + (stat ? '<div class="hstat">' + stat + '</div>' : '') +
+      '<div class="balls">' + r.main.map(ballHTML).join('') + '</div></div>';
+  }).join('');
 }
 
 /* ---------- 행운의 상자 / 광고 ----------
@@ -2098,7 +2160,8 @@ const ACHS = [
   { id:'picky',      ico:'🍃', name:'까다로운 눈',    desc:'한 판에서 상자를 5개 이상 지나친다' },
   { id:'shoestring', ico:'👣', name:'아슬아슬',        desc:'남은 걸음 2보 이하로 완주한다' },
   { id:'veteran',    ico:'🏅', name:'숲의 단골',      desc:'탐험을 5번 완주한다' },
-  { id:'dice_six',   ico:'🎲', name:'숲의 장난',      desc:'주사위에서 6이 나온다' }
+  { id:'dice_six',   ico:'🎲', name:'숲의 장난',      desc:'주사위에서 6이 나온다' },
+  { id:'first_win',  ico:'🎯', name:'첫 당첨',        desc:'발행한 티켓이 5등 안에 든다' }
 ];
 let achDone = readJSON(AKEY, {});
 
@@ -2124,28 +2187,220 @@ function renderAch(){
     (achDone[a.id] ? '<span class="ac">달성</span>' : '') + '</div>').join('');
 }
 
-/* ---------- 순위표 (남은 걸음이 곧 점수) ---------- */
-const LB_SEED = [
-  { n:'솔바람',   s:31 }, { n:'달빛나그네', s:27 }, { n:'초록발자국', s:24 },
-  { n:'이슬맺힘', s:21 }, { n:'밤샘탐험가', s:18 }, { n:'느린걸음',   s:14 },
-  { n:'첫숲',     s:11 }, { n:'등불지기',   s:8  }
-];
-function submitScore(score){
-  const board = readJSON(LKEY, []);
-  board.push({ n: Play.name(), s: score, me:true, t: Date.now() });
-  writeJSON(LKEY, board.slice(-30));
-  Play.submitScore(score);
+/* =====================================================================
+   로또 회차 · 티켓 · 당첨 명예의 전당
+   ---------------------------------------------------------------------
+   지금은 기기 안(localStorage)에서만 돌아간다. 여러 사용자를 한 순위표에
+   모으려면 서버가 필요하다 — 아래 Lotto 객체의 API_BASE 만 채우면 된다.
+
+     GET  /rounds/:drwNo   → { drwNo, nums:[6], bonus, prize:{1..5}, date }
+     POST /tickets         → { round, nums:[6] }        (발행 시 서버 보관)
+     GET  /winners?round=  → [{ round, name, rank, prize }]  (없으면 누적)
+
+   서버가 동행복권 회차 결과를 받아 채점하고 순위를 만드는 구조다.
+   API_BASE 가 비어 있으면 아래 '모의 추첨'으로 대체된다.
+   ===================================================================== */
+const API_BASE = null;
+
+/* 제1회 추첨: 2002-12-07 20:45 KST (= 11:45 UTC), 이후 매주 토요일 */
+const ROUND1_DRAW = Date.UTC(2002, 11, 7, 11, 45);
+const WEEK_MS = 7 * 24 * 3600 * 1000;
+const drawnRounds = t => t < ROUND1_DRAW ? 0 : Math.floor((t - ROUND1_DRAW) / WEEK_MS) + 1;
+const nextRound   = t => drawnRounds(t) + 1;          /* 지금 만든 티켓이 노리는 회차 */
+const drawTimeOf  = n => ROUND1_DRAW + (n - 1) * WEEK_MS;
+const fmtDate = t => {
+  const d = new Date(t), p = x => String(x).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+};
+const won = v => v.toLocaleString('ko-KR') + '원';
+
+/* 회차 번호로 고정되는 난수 — 같은 회차면 누구에게나 같은 결과가 나온다 */
+function seeded(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
 }
-function renderLB(){
-  const mine = readJSON(LKEY, []);
-  const best = mine.length ? Math.max(...mine.map(r => r.s)) : null;
-  const rows = LB_SEED.map(r => ({ ...r }));
-  if (best !== null) rows.push({ n: Play.name() + ' (나)', s: best, me:true });
-  rows.sort((a,b) => b.s - a.s);
-  el('lbList').innerHTML = rows.slice(0, 12).map((r,i) =>
-    '<div class="lbit' + (r.me ? ' me' : '') + '"><span class="rk">' + (i+1) + '</span>' +
-    '<span class="nm">' + r.n + '</span><span class="sc">' + r.s + '보</span></div>').join('')
-    + (best === null ? '<div class="empty">아직 완주 기록이 없습니다.<br>한 판 끝내면 순위에 오릅니다.</div>' : '');
+/* 모의 추첨 — 실제 동행복권 결과가 아니다. 서버 연결 전 데모용. */
+function mockRound(drwNo){
+  const rnd = seeded(drwNo * 2654435761 % 2147483647);
+  const pool = [];
+  for (let i=1; i<=45; i++) pool.push(i);
+  for (let i=pool.length-1; i>0; i--){
+    const j = Math.floor(rnd()*(i+1));
+    const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+  }
+  const rTo = (v, unit) => Math.round(v/unit)*unit;
+  return {
+    drwNo, mock: true,
+    nums: pool.slice(0,6).sort((a,b)=>a-b),
+    bonus: pool[6],
+    date: fmtDate(drawTimeOf(drwNo)),
+    prize: { 1: rTo(1.5e9 + rnd()*1.6e9, 1e6),   /* 1등: 백만원 단위 */
+             2: rTo(4.0e7 + rnd()*3.0e7, 1e4),   /* 2등: 만원 단위 */
+             3: rTo(1.2e6 + rnd()*7e5,   1e4),   /* 3등: 만원 단위 */
+             4: 50000, 5: 5000 }                 /* 4·5등은 고정 */
+  };
+}
+
+const Lotto = {
+  async round(drwNo){
+    if (API_BASE){
+      try {
+        const r = await fetch(API_BASE + '/rounds/' + drwNo);
+        if (r.ok) return await r.json();
+      } catch(e){}
+    }
+    return mockRound(drwNo);
+  },
+  async submitTicket(t){
+    if (!API_BASE) return;
+    try {
+      await fetch(API_BASE + '/tickets', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ round:t.round, nums:t.main }) });
+    } catch(e){}
+  },
+  async winners(round){
+    if (!API_BASE) return null;                      /* null = 로컬 + 모의로 채운다 */
+    try {
+      const q = round ? '?round=' + round : '';
+      const r = await fetch(API_BASE + '/winners' + q);
+      if (r.ok) return await r.json();
+    } catch(e){}
+    return null;
+  }
+};
+
+/* ---------- 채점 ---------- */
+const RANK_NAME = { 1:'1등', 2:'2등', 3:'3등', 4:'4등', 5:'5등' };
+function rankOf(nums, r){
+  const hit = nums.filter(n => r.nums.includes(n)).length;
+  const bo  = nums.includes(r.bonus);
+  if (hit === 6) return 1;
+  if (hit === 5 && bo) return 2;
+  if (hit === 5) return 3;
+  if (hit === 4) return 4;
+  if (hit === 3) return 5;
+  return 0;
+}
+
+/* ---------- 명예의 전당 ---------- */
+const WKEY = 'forest-winners-v1';
+const MOCK_NAMES = ['솔바람','달빛나그네','초록발자국','이슬맺힘','밤샘탐험가',
+                    '느린걸음','등불지기','첫숲','안개골','솔방울'];
+/* 서버 연결 전에는 회차마다 고정된 모의 당첨자를 채워 화면을 보여준다 */
+function mockWinners(round, r){
+  const rnd = seeded(round * 7919 + 13);
+  const out = [], n = 3 + Math.floor(rnd()*3);
+  for (let i=0; i<n; i++){
+    const x = rnd();
+    const rank = x < .05 ? 2 : x < .22 ? 3 : x < .58 ? 4 : 5;
+    out.push({ round, name: MOCK_NAMES[Math.floor(rnd()*MOCK_NAMES.length)],
+               rank, prize: r.prize[rank], mock: true });
+  }
+  return out;
+}
+function recordWinner(w){
+  const list = readJSON(WKEY, []);
+  list.push(w);
+  writeJSON(WKEY, list.slice(-300));
+}
+
+/* ---------- 티켓 채점 (앱 실행 시·명예의 전당 열 때) ---------- */
+async function checkTickets(){
+  const list = loadHistory();
+  const now = Date.now();
+  let changed = false;
+  const fresh = [];
+  for (const t of list){
+    if (!t.round || t.checked || !Array.isArray(t.main)) continue;
+    if (now < drawTimeOf(t.round)) continue;              /* 아직 추첨 전 */
+    const r = await Lotto.round(t.round);
+    if (!r) continue;
+    const rank = rankOf(t.main, r);
+    t.checked = true; t.rank = rank; t.prize = rank ? r.prize[rank] : 0;
+    t.mock = !!r.mock;
+    changed = true;
+    if (rank){
+      recordWinner({ round: t.round, name: Play.name(), rank,
+                     prize: t.prize, me: true, mock: !!r.mock, at: now });
+      fresh.push(t);
+      unlockAch('first_win');
+    }
+  }
+  if (changed){ try { localStorage.setItem(HKEY, JSON.stringify(list)); } catch(e){} }
+  return fresh;
+}
+
+/* ---------- 화면 ---------- */
+let lbTab = 'round';
+async function renderLB(){
+  await checkTickets();
+  const now = Date.now();
+  const last = drawnRounds(now);
+  const box = el('drawBox');
+
+  if (last < 1){
+    box.innerHTML = '<div class="pend">아직 추첨된 회차가 없습니다.</div>';
+  } else {
+    const r = await Lotto.round(last);
+    box.innerHTML =
+      '<div class="dh"><b>' + last + '회</b> · ' + r.date + ' 추첨' +
+      (r.mock ? ' <span class="tag">모의</span>' : '') + '</div>' +
+      '<div class="balls">' + r.nums.map(ballHTML).join('') +
+      '<span class="plus">+</span>' + ballHTML(r.bonus) + '</div>';
+  }
+
+  const server = await Lotto.winners(lbTab === 'round' ? last : null);
+  let rows;
+  if (server) rows = server;
+  else {
+    const mine = readJSON(WKEY, []);
+    const pool = lbTab === 'round'
+      ? mine.filter(w => w.round === last).concat(last >= 1 ? mockWinners(last, await Lotto.round(last)) : [])
+      : mine.concat();
+    if (lbTab === 'all'){
+      /* 누적: 최근 8회차분 모의 당첨자를 함께 쌓아 보여준다 */
+      for (let n = last; n > last - 8 && n >= 1; n--)
+        pool.push(...mockWinners(n, await Lotto.round(n)));
+    }
+    rows = pool;
+  }
+  rows = rows.slice().sort((a,b) => b.prize - a.prize).slice(0, 5);
+
+  el('lbList').innerHTML = rows.length ? rows.map((w,i) =>
+    '<div class="wit' + (w.me ? ' me' : '') + '"><span class="rk">' + (i+1) + '</span>' +
+    '<span class="wl"><div class="w1">' +
+    '<span class="rkbadge r' + w.rank + '">' + RANK_NAME[w.rank] + '</span> ' +
+    (w.me ? Play.name() + ' (나)' : w.name) +
+    (w.mock ? ' <span class="tag">모의</span>' : '') + '</div>' +
+    '<div class="w2">' + w.round + '회 당첨</div></span>' +
+    '<span class="amt">' + won(w.prize) + '</span></div>').join('')
+    : '<div class="empty">아직 이 회차 당첨자가 없습니다.</div>';
+
+  /* 내 티켓 요약 */
+  const mineT = loadHistory().filter(t => t.round);
+  const waiting = mineT.filter(t => !t.checked).length;
+  const winsT   = mineT.filter(t => t.rank).length;
+  const total   = mineT.reduce((a,t) => a + (t.prize||0), 0);
+  el('myTicketSum').innerHTML = mineT.length
+    ? '내 티켓 <b>' + mineT.length + '장</b> · 추첨 대기 <b>' + waiting +
+      '</b> · 당첨 <b>' + winsT + '</b>' + (total ? ' · 누적 <b>' + won(total) + '</b>' : '')
+    : '아직 발행한 티켓이 없습니다. 한 판 끝내면 이번 회차 티켓이 만들어집니다.';
+
+  el('lbDisc').innerHTML = API_BASE
+    ? '서버에 기록된 실제 이용자 순위입니다.'
+    : '⚠️ 서버 연결 전이라 <b>모의 추첨 결과</b>와 <b>모의 이용자</b>가 섞여 있습니다. ' +
+      '실제 동행복권 당첨번호·당첨금이 아닙니다. 서버를 붙이면 실제 회차 결과로 바뀝니다.';
+}
+function setTab(t){
+  lbTab = t;
+  el('tabRound').classList.toggle('on', t === 'round');
+  el('tabAll').classList.toggle('on', t === 'all');
+  renderLB();
 }
 
 /* ---------- Play 서비스 ---------- */
@@ -2265,11 +2520,13 @@ el('adDone').addEventListener('click', () => { if (!el('adDone').disabled) endAd
 el('adCancel').addEventListener('click', () => endAd('dismissed'));
 el('signBtn').addEventListener('click', () => Play.signedIn ? Play.signOut() : Play.signIn());
 el('achBtn').addEventListener('click', () => { renderAch(); openModal('achModal'); });
-el('lbBtn').addEventListener('click', () => { renderLB(); openModal('lbModal'); });
+el('lbBtn').addEventListener('click', () => { openModal('lbModal'); renderLB(); });
 el('resAchBtn').addEventListener('click', () => { renderAch(); openModal('achModal'); });
-el('resLbBtn').addEventListener('click', () => { renderLB(); openModal('lbModal'); });
+el('resLbBtn').addEventListener('click', () => { openModal('lbModal'); renderLB(); });
 el('achClose').addEventListener('click', () => closeModal('achModal'));
 el('lbClose').addEventListener('click', () => closeModal('lbModal'));
+el('tabRound').addEventListener('click', () => setTab('round'));
+el('tabAll').addEventListener('click', () => setTab('all'));
 
 /* ---------- 목업 개발자 패널 ---------- */
 el('devBtn').addEventListener('click', () => openModal('devModal'));
@@ -2285,7 +2542,7 @@ el('devFrame').addEventListener('change', e => {
   setTimeout(resize, 60);
 });
 el('devReset').addEventListener('click', () => {
-  try { [HKEY, GKEY, AKEY, LKEY, SKEY].forEach(k => localStorage.removeItem(k)); } catch(e){}
+  try { [HKEY, GKEY, AKEY, LKEY, SKEY, WKEY].forEach(k => localStorage.removeItem(k)); } catch(e){}
   goldStock = 0; achDone = {};
   updateGoldUI(); updatePlayUI();
   toast('저장 데이터를 초기화했습니다');
@@ -2422,6 +2679,18 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
 goldStock = loadGold();
 updateGoldUI();
 updatePlayUI();
+
+/* 앱을 켤 때 지난 회차 티켓을 채점하고, 당첨이 있으면 알려준다 */
+setTimeout(async () => {
+  const fresh = await checkTickets();
+  if (!fresh.length) return;
+  const best = fresh.reduce((a,b) => a.prize > b.prize ? a : b);
+  let sum = 0; for (const f of fresh) sum += f.prize;
+  Play.submitScore(loadHistory().reduce((a,t) => a + (t.prize||0), 0));
+  toast('🎉 ' + best.round + '회 <b>' + RANK_NAME[best.rank] + '</b> 당첨! ' +
+        won(sum) + (fresh.length > 1 ? ' (' + fresh.length + '장)' : '') +
+        (best.mock !== false && !API_BASE ? '<br><span style="font-size:11px;color:#9cb3a4">모의 추첨 결과입니다</span>' : ''));
+}, 2200);
 /* 앱 실행 느낌의 스플래시 — 목업에서는 1.3초 뒤 사라진다 */
 setTimeout(() => el('splash').classList.add('gone'), 1300);
 resize();

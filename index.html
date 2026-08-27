@@ -207,6 +207,34 @@
   .ticket{cursor:pointer;}
   .tcopy{font-size:10.5px;color:#a99b7d;margin-top:9px;}
 
+  /* ================= 주사위 상자 ================= */
+  #diceLayer{position:fixed;inset:0;z-index:50;display:none;place-items:center;
+    background:rgba(4,12,8,.72);backdrop-filter:blur(4px);}
+  #diceLayer.on{display:grid;}
+  .dice-in{display:flex;flex-direction:column;align-items:center;gap:16px;
+    animation:dicePop .4s cubic-bezier(.2,1.5,.4,1);}
+  @keyframes dicePop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+  .dice-cap{font-size:13px;font-weight:900;color:#cdb4ff;letter-spacing:.04em;}
+  .die{width:112px;height:112px;border-radius:22px;background:linear-gradient(150deg,#fdfbf4,#ded8c6);
+    box-shadow:0 16px 44px rgba(0,0,0,.6),inset 0 -5px 0 rgba(0,0,0,.12);
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    padding:16px;gap:6px;}
+  .die i{border-radius:50%;background:#2a2c3a;opacity:0;transform:scale(.5);
+    transition:opacity .12s,transform .12s;}
+  .die i.on{opacity:1;transform:scale(1);}
+  .die.rolling{animation:dieShake .16s infinite;}
+  @keyframes dieShake{0%{transform:rotate(-5deg) translateY(0)}
+    50%{transform:rotate(5deg) translateY(-6px)}100%{transform:rotate(-5deg) translateY(0)}}
+  .die.settled{animation:dieLand .45s cubic-bezier(.2,1.6,.4,1);}
+  @keyframes dieLand{0%{transform:scale(1.25)}100%{transform:scale(1)}}
+  .dice-msg{font-size:15px;font-weight:900;color:var(--gold-2);text-align:center;
+    line-height:1.5;max-width:80vw;}
+  .dice-msg b{color:#cdb4ff;}
+  @media (max-width:560px){
+    .die{width:92px;height:92px;border-radius:19px;padding:13px;gap:5px;}
+    .dice-msg{font-size:13.5px;}
+  }
+
   /* ================= Play 목업 셸 ================= */
   #splash{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:6px;
@@ -310,7 +338,8 @@
   #devBtn{position:fixed;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:70;
     width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
     background:rgba(9,22,15,.85);color:var(--gold-2);font-size:15px;backdrop-filter:blur(6px);}
-  body.adplaying #devBtn{display:none;}   /* 광고 닫기(✕)를 가리지 않게 */
+  body.adplaying #devBtn,
+  body.dicing #devBtn{display:none;}      /* 광고·주사위 연출을 가리지 않게 */
   body.frame #devBtn{top:calc(env(safe-area-inset-top,0px) + 34px);}
   .devbox{display:flex;flex-direction:column;gap:9px;margin-bottom:15px;}
   label.dev{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.26);
@@ -419,6 +448,14 @@
   <div class="cbtns">
     <button id="takeBtn">✋ 담기</button>
     <button id="skipBtn">🍃 지나치기 <em>1보</em></button>
+  </div>
+</div>
+
+<div id="diceLayer">
+  <div class="dice-in">
+    <div class="dice-cap">🎲 행운의 주사위 상자</div>
+    <div class="die" id="die"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="dice-msg" id="diceMsg">굴리는 중…</div>
   </div>
 </div>
 
@@ -717,6 +754,8 @@ const GRADES = {
           bonus:4, skip:0, desc:'담으면 걸음 +4 · 지나치기는 공짜' }
 };
 const GRADE_MIX = { low: 24, mid: 14, high: 7 };   // 45개 분포
+const DICE_COUNT = 6;                              // 오솔길 중간에 끼우는 주사위 상자
+const DICE_CHAIN_MAX = 3;                          // 연속 주사위 상한 (무한 이동 방지)
 const GOLD_CAP  = 8;
 
 /* 광고로 모은 행운의 상자 (브라우저에 저장) */
@@ -732,6 +771,8 @@ function saveGold(){ try { localStorage.setItem(GKEY, String(goldStock)); } catc
 let nodes = [], edges = [], entrance = null;
 let cur = null, steps = 0, maxSteps = 0, opened = [];
 let pending = null, skipped = 0;      // 담기/지나치기 결정 대기 노드, 지나친 상자 수
+let forced = null;                    // 주사위로 끌려가는 중 { left, from }
+let diceChain = 0, diceRolls = 0;     // 연속 주사위 횟수 / 한 판 총 굴림
 let buff = BUFFS.normal;
 let running = false, finished = false;
 let mover = null;                 // 이동 애니메이션
@@ -881,6 +922,54 @@ function genMap(){
                     .slice(0, 3);
   near.forEach(n => makeEdge(entrance, n));
 
+  /* --- 주사위 상자: 오솔길 여섯 곳의 '중간'에 끼워 넣는다 --- */
+  const splitEdge = (e, x, y) => {
+    const d = { id: nodes.length, x, y, dice:true, used:false, chest:false,
+                num:0, opened:true, adj:[], bob: Math.random()*6.28, r:-1, c:-1 };
+    nodes.push(d);
+    edges.splice(edges.indexOf(e), 1);
+    e.a.adj = e.a.adj.filter(l => l.e !== e);
+    e.b.adj = e.b.adj.filter(l => l.e !== e);
+    makeEdge(e.a, d); makeEdge(d, e.b);
+    return d;
+  };
+  /* 숲을 3x2 로 나눠 지역마다 하나씩 — 어디를 돌아다녀도 하나는 근처에 오도록.
+     같은 값이면 갈림길(이웃이 많은 상자)을 잇는 오솔길을 고른다. 지나칠 확률이 높다. */
+  const cand = edges.filter(x => x.a.chest && x.b.chest);
+  const placed = [];
+  const COLS_R = 3, ROWS_R = 2;
+  const takeEdge = e => {
+    const m = bez(e, e.a, .5);
+    e.__used = true;
+    placed.push(splitEdge(e, m.x, m.y));
+  };
+  for (let r=0; r<ROWS_R && placed.length < DICE_COUNT; r++){
+    for (let c=0; c<COLS_R && placed.length < DICE_COUNT; c++){
+      const cx = MARGIN + (c + .5) * (MAP.w - MARGIN*2) / COLS_R;
+      const cy = MARGIN + (r + .5) * (MAP.h - MARGIN*2) / ROWS_R;
+      let best = null, bestScore = -Infinity;
+      for (const e of cand){
+        if (e.__used) continue;
+        const m = bez(e, e.a, .5);
+        const d = dist(m.x, m.y, cx, cy);
+        if (d > 430) continue;
+        if (placed.some(q => dist(m.x, m.y, q.x, q.y) < 250)) continue;
+        const deg = e.a.adj.length + e.b.adj.length;
+        const score = deg * 34 - d + Math.random() * 60;
+        if (score > bestScore){ bestScore = score; best = e; }
+      }
+      if (best) takeEdge(best);
+    }
+  }
+  /* 지역에 후보가 없어 모자라면 남은 곳에서 채운다 */
+  for (const e of cand){
+    if (placed.length >= DICE_COUNT) break;
+    if (e.__used) continue;
+    const m = bez(e, e.a, .5);
+    if (placed.some(q => dist(m.x, m.y, q.x, q.y) < 250)) continue;
+    takeEdge(e);
+  }
+
   if (buff.key === 'bad') edges.forEach(e => e.cost = 1);
 
   /* 배경 장식: 노드/오솔길에서 떨어진 곳에만 */
@@ -968,6 +1057,9 @@ function startRun(keepBuff){
   steps = maxSteps = buff.steps;
   opened = []; moveCount = 0; finished = false; mover = null;
   pending = null; skipped = 0; hideChoice();
+  forced = null; diceChain = 0; diceRolls = 0;
+  el('diceLayer').classList.remove('on');
+  document.body.classList.remove('dicing');
   overview = false; freeLook = false; targetVS = followScale();
   el('mapBtn').classList.remove('on'); el('hud').classList.remove('free');
   startTime = performance.now();
@@ -981,10 +1073,11 @@ function startRun(keepBuff){
 function edgeCost(e){ return e.cost; }
 
 function canMove(link){
-  return !finished && !mover && !pending && running && edgeCost(link.e) <= steps;
+  return !finished && !mover && !pending && !forced && running && edgeCost(link.e) <= steps;
 }
 
 function moveTo(link){
+  if (forced) return;
   if (pending){ sfxNo(); toast('먼저 이 상자를 <b>담을지 지나칠지</b> 정하자'); return; }
   if (!canMove(link)) {
     sfxNo();
@@ -1010,6 +1103,15 @@ function arrive(node){
   if (finished) return;
   playerPos.x = node.x; playerPos.y = node.y;
 
+  /* 주사위에 휩쓸려 가는 중 — 지나치는 상자는 열지 않는다 */
+  if (forced){
+    if (forced.left > 0){ forcedStep(); return; }
+    forced = null;
+  }
+  /* 주사위 상자 도착 */
+  if (node.dice && !node.used){ rollDice(node); return; }
+  diceChain = 0;
+
   if (node.chest && !node.opened){
     node.opened = true;
     node.openT = performance.now();
@@ -1022,6 +1124,83 @@ function arrive(node){
   }
   updateHUD();
   checkStuck();
+}
+
+/* ---------- 주사위 상자 ----------
+   오솔길 중간에 놓인 상자. 열면 1~6이 나오고 그 수만큼 무작위 오솔길로
+   휩쓸려 간다. 걸음은 들지 않는다 — 이게 '행운'인 대목. */
+const DIE_FACES = {                    /* 3x3 격자에서 켤 칸 (0~8) */
+  1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8]
+};
+function paintDie(v){
+  const pips = el('die').children;
+  const on = DIE_FACES[v] || [];
+  for (let i=0; i<9; i++) pips[i].classList.toggle('on', on.includes(i));
+}
+
+function rollDice(node){
+  node.used = true;
+  node.openT = performance.now();
+  diceChain++; diceRolls++;
+  const v = 1 + secRand(6);
+  node.roll = v;
+  burst(node.x, node.y);
+  sfxOpen();
+
+  const layer = el('diceLayer'), die = el('die'), msg = el('diceMsg');
+  document.body.classList.add('dicing');
+  layer.classList.add('on');
+  die.classList.add('rolling'); die.classList.remove('settled');
+  msg.textContent = diceChain > 1 ? '또 주사위다!' : '굴리는 중…';
+
+  let ticks = 0;
+  const spin = setInterval(() => {
+    paintDie(1 + Math.floor(Math.random()*6));
+    tone(300 + Math.random()*260, .05, 'square', .05);
+    if (++ticks > 10){
+      clearInterval(spin);
+      die.classList.remove('rolling'); die.classList.add('settled');
+      paintDie(v);
+      [660, 880].forEach((f,i) => tone(f, .25, 'triangle', .11, i*.09));
+      if (v === 6) unlockAch('dice_six');
+      msg.innerHTML = '<b>' + v + '</b>칸 — 숲이 당신을 끌고 갑니다<br>' +
+                      '<span style="font-size:12px;color:#9cb3a4">걸음은 들지 않는다</span>';
+      setTimeout(() => {
+        layer.classList.remove('on');
+        document.body.classList.remove('dicing');
+        startForced(v);
+      }, 1050);
+    }
+  }, 85);
+}
+
+function startForced(n){
+  if (diceChain > DICE_CHAIN_MAX){
+    toast('주사위가 잦아 숲이 잠잠해졌다');
+    diceChain = 0;
+    updateHUD(); checkStuck();
+    return;
+  }
+  freeLook = false; el('hud').classList.remove('free');
+  forced = { left: n, from: null };
+  toast('🎲 ' + n + '칸 이동 — 걸음 소모 없음');
+  forcedStep();
+}
+
+function forcedStep(){
+  if (!forced || forced.left <= 0){ forced = null; updateHUD(); checkStuck(); return; }
+  const links = cur.adj;
+  if (!links.length){ forced = null; updateHUD(); checkStuck(); return; }
+  /* 방금 온 길은 되도록 피한다 — 한 자리에서 튕기지 않도록 */
+  let pool = links.filter(l => l.to !== forced.from);
+  if (!pool.length) pool = links;
+  const link = pool[Math.floor(Math.random() * pool.length)];
+  forced.from = cur;
+  forced.left--;
+  link.e.visited = true;
+  mover = { e: link.e, from: cur, to: link.to, t: 0,
+            dur: Math.max(.22, link.e.len / (WALK_SPEED * 1.5)) };
+  sfxStep();
 }
 
 /* ---------- 담기 / 지나치기 ---------- */
@@ -1166,7 +1345,8 @@ function finish(byWind){
   el('resultBalls').innerHTML = nums.map(ballHTML).join('');
   el('resultMeta').innerHTML =
     date + '<br>' + buff.em + ' ' + buff.name + ' · 이동 ' + moveCount + '회 · 지나친 상자 ' +
-    skipped + '개 · 남은 걸음 ' + steps + '보 · ' + fmtTime(elapsed);
+    skipped + '개' + (diceRolls ? ' · 🎲 ' + diceRolls + '번' : '') +
+    ' · 남은 걸음 ' + steps + '보 · ' + fmtTime(elapsed);
   setTimeout(() => openModal('resultModal'), byWind ? 200 : 900);
 }
 
@@ -1522,9 +1702,80 @@ const BAND = n => n <= 15 ? { t:'1~15',  c:'#8fd3f4' }
                 : (n <= 30 ? { t:'16~30', c:'#f6dda1' }
                 :            { t:'31~45', c:'#ff9c8a' });
 
+/* 주사위 눈을 상자 뚜껑 위에 찍는다 */
+const PIPS = {
+  1:[[0,0]], 2:[[-1,-1],[1,1]], 3:[[-1,-1],[0,0],[1,1]],
+  4:[[-1,-1],[1,-1],[-1,1],[1,1]], 5:[[-1,-1],[1,-1],[0,0],[-1,1],[1,1]],
+  6:[[-1,-1],[1,-1],[-1,0],[1,0],[-1,1],[1,1]]
+};
+function drawDie(x, y, size, v, dark){
+  const r = size/2;
+  ctx.fillStyle = '#fdfbf4';
+  ctx.beginPath(); ctx.roundRect(x-r, y-r, size, size, size*0.22); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = size*0.05; ctx.stroke();
+  ctx.fillStyle = dark ? '#8d93a5' : '#2a2c3a';
+  for (const [px,py] of (PIPS[v] || PIPS[1])){
+    ctx.beginPath();
+    ctx.arc(x + px*size*0.26, y + py*size*0.26, size*0.095, 0, 6.2832);
+    ctx.fill();
+  }
+}
+
 function drawNode(n, time){
   const isCur = n === cur;
-  if (!n.chest){
+  if (n.dice){
+    const z = clamp(1/vs, 1, 1.8);
+    const live = !n.used;
+    const pu = .5 + .5*Math.sin(time*.0045 + n.bob);
+    const bob = live ? Math.sin(time*.0026 + n.bob)*2.6 : 0;
+    const y = n.y + bob;
+    shadowE(n.x, n.y+3, 19*z, 6.5*z, .3);
+    if (live){
+      const g = ctx.createRadialGradient(n.x, y-12*z, 3, n.x, y-12*z, 58*z);
+      g.addColorStop(0, 'rgba(178,140,255,' + (.26 + pu*.22) + ')');
+      g.addColorStop(1, 'rgba(178,140,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(n.x, y-12*z, 58*z, 0, 6.2832); ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(n.x, y); ctx.scale(z, z);
+    if (!live) ctx.globalAlpha = .5;
+    ctx.fillStyle = live ? '#48376b' : '#3a3348';
+    ctx.beginPath(); ctx.roundRect(-17, -17, 34, 18, 3); ctx.fill();
+    ctx.fillStyle = live ? '#5b4785' : '#453d55';
+    ctx.beginPath(); ctx.roundRect(-17, -26, 34, 12, 4); ctx.fill();
+    ctx.fillStyle = live ? '#cdb4ff' : '#7b7290';
+    ctx.fillRect(-17, -16, 34, 3);
+    ctx.fillRect(-2.5, -26, 5, 25);
+    ctx.restore();
+    /* 뚜껑 위에 떠 있는 주사위 (사용 후에는 나온 눈을 남긴다) */
+    ctx.save();
+    if (!live) ctx.globalAlpha = .62;
+    drawDie(n.x, y - (live ? 38 + pu*4 : 34)*z, (live ? 21 : 18)*z, live ? ((Math.floor(time/140) % 6) + 1) : n.roll, !live);
+    ctx.restore();
+    if (!live){
+      ctx.fillStyle = 'rgba(205,180,255,.7)';
+      ctx.font = '800 ' + (9*z).toFixed(1) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('굴렸다', n.x, y + 14*z);
+    }
+    if (live && Math.random() < .1){
+      parts.push({ x: n.x + rnd(-18,18), y: y - rnd(0,32), vx: rnd(-8,8), vy: rnd(-24,-8),
+                   life:1, max:rnd(.5,1.1), size:rnd(1,2.2), col:'#cdb4ff' });
+    }
+    if (cur && cur.adj.some(l => l.to === n) && vs > .3 && live){
+      const zz = clamp(1/vs, 1, 2.2);
+      const txt = '🎲 주사위 상자';
+      ctx.font = '800 ' + (11*zz).toFixed(1) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const w = ctx.measureText(txt).width + 16*zz;
+      ctx.fillStyle = 'rgba(8,18,12,.92)';
+      ctx.beginPath(); ctx.roundRect(n.x - w/2, y+4*zz, w, 17*zz, 8*zz); ctx.fill();
+      ctx.strokeStyle = '#cdb4ff'; ctx.lineWidth = 1.1*zz; ctx.stroke();
+      ctx.fillStyle = '#cdb4ff';
+      ctx.fillText(txt, n.x, y + 12.5*zz);
+    }
+  } else if (!n.chest){
     /* 숲 입구 표지판 */
     shadowE(n.x, n.y, 20, 7, .3);
     const z = clamp(1/vs, 1, 2.2);
@@ -1846,7 +2097,8 @@ const ACHS = [
   { id:'gold_take',  ico:'⭐', name:'행운을 줍다',    desc:'황금 상자를 담는다' },
   { id:'picky',      ico:'🍃', name:'까다로운 눈',    desc:'한 판에서 상자를 5개 이상 지나친다' },
   { id:'shoestring', ico:'👣', name:'아슬아슬',        desc:'남은 걸음 2보 이하로 완주한다' },
-  { id:'veteran',    ico:'🏅', name:'숲의 단골',      desc:'탐험을 5번 완주한다' }
+  { id:'veteran',    ico:'🏅', name:'숲의 단골',      desc:'탐험을 5번 완주한다' },
+  { id:'dice_six',   ico:'🎲', name:'숲의 장난',      desc:'주사위에서 6이 나온다' }
 ];
 let achDone = readJSON(AKEY, {});
 
@@ -2069,6 +2321,9 @@ function renderGradeLegend(){
     '<div class="nm">상자 등급</div>' +
     '<div class="sm">상자 색으로 등급을 알 수 있다 — 어디로 갈지, 무엇을 지나칠지의 기준</div></span></div>' +
     rows +
+    '<div class="bl"><span class="k" style="color:#cdb4ff">🎲 주사위 상자</span><span class="v">' +
+    '오솔길 <b>중간</b>에 6개 · 열면 1~6이 나오고 그 수만큼 <b>걸음 없이</b> 무작위로 끌려간다' +
+    '</span></div>' +
     '<div class="bl"><span class="k" style="color:#9cb3a4">유의</span><span class="v" style="color:#9cb3a4">' +
     '등급은 <b>숫자 크기와 아무 상관이 없다</b>. 45개 상자에 무작위로 흩뿌려지며, ' +
     '달라지는 것은 <b>걸음 보너스와 지나치기 비용</b>뿐이다.</span></div>';

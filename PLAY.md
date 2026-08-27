@@ -118,6 +118,7 @@ runOnUiThread { webView.evaluateJavascript("window.onRewardedAdResult('rewarded'
 | `picky` | 까다로운 눈 | 한 판에서 5개 이상 지나침 |
 | `shoestring` | 아슬아슬 | 남은 걸음 2보 이하로 완주 |
 | `veteran` | 숲의 단골 | 5회 완주 |
+| `dice_six` | 숲의 장난 | 주사위에서 6이 나옴 |
 
 순위표 점수는 **완주 시 남은 걸음 수**입니다(높을수록 상위).
 `submitScore(steps)` 가 `finish()` 안에서 호출되며, 바람으로 채운 판은 제출하지 않습니다.

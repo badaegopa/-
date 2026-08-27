@@ -76,9 +76,15 @@
   #chBall.d{color:#241d0c;}
   @keyframes chpop{0%{transform:scale(.2) rotate(-25deg)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
   .ctxt{flex:1;min-width:0;text-align:left;}
-  .ct1{font-size:14px;font-weight:800;line-height:1.4;}
+  .ct1{font-size:14px;font-weight:800;line-height:1.5;display:flex;align-items:center;
+    gap:7px;flex-wrap:wrap;}
   .ct1 b{color:var(--gold-2);}
-  .ct2{font-size:11.5px;color:var(--dim);margin-top:3px;}
+  .gbadge{font-size:11px;font-weight:900;padding:2px 8px;border-radius:999px;
+    border:1px solid currentColor;letter-spacing:.02em;}
+  .ct2{font-size:11.5px;color:var(--gold-2);margin-top:4px;font-weight:700;}
+  .cmemo{font-size:11.5px;margin-top:4px;line-height:1.5;color:var(--dim);}
+  .cmemo.warn{color:#ffb08a;} .cmemo.good{color:#8fe0b0;}
+  .ct3{font-size:10.5px;color:#7a8f81;margin-top:4px;}
   .cbtns{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;}
   .cbtns button{border-radius:11px;padding:9px 13px;font-size:13px;font-weight:900;
     border:1px solid transparent;white-space:nowrap;transition:transform .12s,filter .2s;}
@@ -87,11 +93,12 @@
   #skipBtn{background:transparent;border-color:var(--line);color:var(--gold-2);}
   #skipBtn em{font-style:normal;color:var(--dim);font-weight:700;font-size:11px;}
   #skipBtn:disabled{opacity:.35;cursor:not-allowed;}
-  @media (max-width:520px){
-    #choice{bottom:104px;gap:10px;padding:11px 12px;}
-    #chBall{width:46px;height:46px;font-size:19px;}
-    .ct1{font-size:12.5px;} .ct2{font-size:10.5px;}
-    .cbtns button{padding:8px 10px;font-size:12px;}
+  @media (max-width:560px){
+    #choice{bottom:98px;gap:10px;padding:11px 12px;flex-wrap:wrap;}
+    #chBall{width:44px;height:44px;font-size:18px;}
+    .ct1{font-size:12.5px;} .ct2,.cmemo{font-size:10.8px;} .ct3{font-size:9.8px;}
+    .cbtns{flex-direction:row;width:100%;}
+    .cbtns button{flex:1;padding:10px 8px;font-size:12.5px;}
   }
 
   #toast{position:fixed;left:50%;bottom:35%;transform:translateX(-50%) translateY(10px);
@@ -156,6 +163,27 @@
   .ball.d{color:#332a0e;}
   .meta{margin-top:12px;font-size:11.5px;color:#8a7f66;line-height:1.6;}
 
+  /* 행운의 상자 보유 표시 + 광고 */
+  .goldrow{display:flex;align-items:center;gap:11px;background:rgba(233,196,106,.08);
+    border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:14px;text-align:left;}
+  .goldrow .gem{font-size:26px;line-height:1;}
+  .goldrow .gt{flex:1;min-width:0;}
+  .goldrow .g1{font-size:14px;font-weight:900;color:var(--gold-2);}
+  .goldrow .g2{font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.55;}
+  .adbtn{background:linear-gradient(135deg,#3d8f6a,#2b6b4d);border:none;color:#eafff4;
+    border-radius:12px;padding:11px 14px;font-size:13px;font-weight:900;white-space:nowrap;}
+  .adbtn:disabled{opacity:.45;}
+  .adbox{background:#0a1a12;border:1px dashed rgba(233,196,106,.4);border-radius:16px;
+    padding:20px 16px;margin-bottom:15px;}
+  .adtag{font-size:10px;letter-spacing:.22em;font-weight:900;color:#7b8f83;margin-bottom:12px;}
+  .adart{font-size:52px;line-height:1;margin-bottom:10px;}
+  .adcopy{font-size:12.5px;color:var(--dim);line-height:1.6;margin-bottom:14px;}
+  .adbar{height:7px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden;}
+  .adbar i{display:block;height:100%;width:0%;border-radius:99px;
+    background:linear-gradient(90deg,#4bb98a,var(--gold));transition:width .25s linear;}
+  .ticket{cursor:pointer;}
+  .tcopy{font-size:10.5px;color:#a99b7d;margin-top:9px;}
+
   .hist{max-height:50vh;overflow-y:auto;text-align:left;margin-bottom:13px;}
   .hitem{background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.07);border-radius:13px;
     padding:11px 12px;margin-bottom:8px;}
@@ -184,6 +212,7 @@
     </div>
     <div class="slots" id="slots"></div>
     <div class="buffchip" id="buffChip">🍀 버프 <span>—</span></div>
+    <div class="buffchip" id="goldChip" style="display:none">⭐ 행운의 상자 <span>0</span></div>
   </div>
   <div class="spacer"></div>
   <div class="bottom">
@@ -199,8 +228,11 @@
 <div id="choice">
   <div id="chBall">?</div>
   <div class="ctxt">
-    <div class="ct1">상자 안에서 <b id="chNum">?</b>번이 나왔다</div>
-    <div class="ct2" id="chSub">담으면 0 / 6</div>
+    <div class="ct1"><span class="gbadge" id="chGrade">하급</span>
+      <b id="chNum">?</b>번이 나왔다</div>
+    <div class="ct2" id="chEffect">담아도 걸음 보너스는 없다</div>
+    <div class="cmemo" id="chMemo">첫 숫자다</div>
+    <div class="ct3" id="chSub">담으면 0 / 6</div>
   </div>
   <div class="cbtns">
     <button id="takeBtn">✋ 담기</button>
@@ -216,6 +248,14 @@
     <h1>오늘 당신의 운은<br>좋습니까?</h1>
     <p class="sub">숲은 당신의 대답에 맞춰 채비를 내어줍니다.<br>대답에 따라 <b style="color:#f6dda1">서로 다른 버프</b>를 받습니다.<br>
     상자를 열면 <b style="color:#f6dda1">담을지 지나칠지</b> 고를 수 있습니다 (지나치기 1보).</p>
+    <div class="goldrow">
+      <span class="gem">⭐</span>
+      <span class="gt">
+        <span class="g1" id="goldCount">행운의 상자 0개</span>
+        <span class="g2" id="goldNote">광고를 보면 1개씩 쌓입니다. 모은 만큼 숲에 <b>황금 상자</b>로 놓입니다.</span>
+      </span>
+      <button class="adbtn" id="adBtn1">📺 광고 보기</button>
+    </div>
     <div class="luck">
       <button class="luckbtn" data-luck="good">
         <span class="em">🍀</span>
@@ -244,6 +284,7 @@
     <h2>숲의 가호</h2>
     <p class="sub">당신의 대답에 따라 다음 버프를 받았습니다.</p>
     <div class="buffbox" id="buffBox"></div>
+    <div class="buffbox" id="gradeBox"></div>
     <button class="cta" id="enterBtn">🌲 숲으로 들어가기</button>
     <button class="ghost" id="reLuckBtn">← 다시 대답하기</button>
   </div>
@@ -258,11 +299,12 @@
       <div class="tlabel">FOREST LOTTO 6 / 45</div>
       <div class="balls" id="resultBalls"></div>
       <div class="meta" id="resultMeta"></div>
+      <div class="tcopy">티켓을 탭하면 번호가 복사됩니다</div>
     </div>
     <button class="cta" id="againBtn">🔁 같은 버프로 다시 도전</button>
     <div class="row2">
       <button class="ghost" id="reAskBtn">🎲 운 다시 묻기</button>
-      <button class="ghost" id="copyBtn">📋 번호 복사</button>
+      <button class="ghost" id="adBtn2">📺 광고 보고 ⭐ 받기</button>
     </div>
     <button class="ghost" id="resHistBtn">📜 기록 보기</button>
   </div>
@@ -275,6 +317,24 @@
     <p class="sub" id="failSub"></p>
     <button class="cta" id="windBtn">🍃 숲의 바람에 맡기기</button>
     <button class="ghost" id="failAgainBtn">🔁 처음부터 다시 도전</button>
+  </div>
+</div>
+
+<!-- 광고 -->
+<div class="modal" id="adModal">
+  <div class="card">
+    <h2>📺 광고 보기</h2>
+    <p class="sub">끝까지 보면 <b style="color:#f6dda1">행운의 상자 ⭐ 1개</b>를 받습니다.<br>
+    도중에 닫으면 보상이 없습니다.</p>
+    <div class="adbox">
+      <div class="adtag">광 고 영 역 · 샘 플</div>
+      <div class="adart">🌲</div>
+      <div class="adcopy">이 자리에 실제 광고가 표시됩니다.<br>
+      (현재는 동작 확인용 자리표시자입니다)</div>
+      <div class="adbar"><i id="adFill"></i></div>
+    </div>
+    <button class="cta" id="adDone" disabled>5초 남음…</button>
+    <button class="ghost" id="adCancel">닫기</button>
   </div>
 </div>
 
@@ -353,9 +413,9 @@ const BUFFS = {
     steps: 20,
     lines: [
       ['시작 걸음', '<b>20보</b> — 채비는 가장 적다'],
-      ['순풍',      '오솔길을 지날 때 <b>35% 확률로 걸음을 소모하지 않는다</b>'],
-      ['행운의 보답','상자를 <b>담을 때 25% 확률로 걸음 +3</b>'],
-      ['한마디',    '운을 믿는 자에게 숲은 적게 내어주고, 대신 크게 되돌려준다.']
+      ['순풍',      '<b>이동과 지나치기</b> 모두 <b>35% 확률로 걸음을 쓰지 않는다</b>'],
+      ['고르기',    '걸음을 자주 아끼는 만큼 <b>마음에 안 드는 번호를 더 많이 지나칠 수 있다</b>'],
+      ['한마디',    '운을 믿는 자에게 숲은 적게 내어주고, 대신 자주 눈감아 준다.']
     ]
   },
   normal: {
@@ -364,8 +424,8 @@ const BUFFS = {
     steps: 26,
     lines: [
       ['시작 걸음', '<b>26보</b> — 균형 잡힌 채비'],
-      ['나침반',   '이웃한 상자의 <b>번호 구간(작음·중간·큼)</b>이 미리 보인다'],
-      ['꾸준함',   '상자를 <b>담을 때마다 걸음 +1</b>'],
+      ['나침반',   '이웃한 상자의 <b>번호 범위(1~15 / 16~30 / 31~45)</b>가 미리 보인다'],
+      ['눈썰미',   '<b>상급 상자도 1보</b>로 지나칠 수 있다 (원래는 2보)'],
       ['한마디',   '무난한 날에는, 앞을 읽는 눈이 가장 큰 무기가 된다.']
     ]
   },
@@ -382,11 +442,37 @@ const BUFFS = {
   }
 };
 
+/* ---------- 상자 등급 ---------- */
+const GRADES = {
+  low:  { key:'low',  name:'하급',        label:'하', tag:'낡은 나무 상자',
+          body:'#6b4a2a', lid:'#7d5730', trim:'#9a7644', gems:0,
+          bonus:0, skip:1, desc:'걸음 보너스 없음 · 지나치기 1보' },
+  mid:  { key:'mid',  name:'중급',        label:'중', tag:'은장 상자',
+          body:'#4f6069', lid:'#61757f', trim:'#d3e2ea', gems:1,
+          bonus:1, skip:1, desc:'담으면 걸음 +1 · 지나치기 1보' },
+  high: { key:'high', name:'상급',        label:'상', tag:'붉은 옻칠 상자',
+          body:'#7b322d', lid:'#933f38', trim:'#e9c46a', gems:2,
+          bonus:2, skip:2, desc:'담으면 걸음 +2 · 아까운 만큼 지나치기 2보' },
+  gold: { key:'gold', name:'행운의 상자', label:'⭐', tag:'광고로 얻은 황금 상자',
+          body:'#c08f26', lid:'#e0a92e', trim:'#fff0b8', gems:3,
+          bonus:4, skip:0, desc:'담으면 걸음 +4 · 지나치기는 공짜' }
+};
+const GRADE_MIX = { low: 24, mid: 14, high: 7 };   // 45개 분포
+const GOLD_CAP  = 8;
+
+/* 광고로 모은 행운의 상자 (브라우저에 저장) */
+const GKEY = 'forest-gold-boxes-v1';
+let goldStock = 0;
+function loadGold(){
+  try { return clamp(parseInt(localStorage.getItem(GKEY) || '0', 10) || 0, 0, GOLD_CAP); }
+  catch(e){ return 0; }
+}
+function saveGold(){ try { localStorage.setItem(GKEY, String(goldStock)); } catch(e){} }
+
 /* ---------- 상태 ---------- */
 let nodes = [], edges = [], entrance = null;
 let cur = null, steps = 0, maxSteps = 0, opened = [];
 let pending = null, skipped = 0;      // 담기/지나치기 결정 대기 노드, 지나친 상자 수
-const SKIP_COST = 1;                  // 지나치는 데 드는 걸음
 let buff = BUFFS.normal;
 let running = false, finished = false;
 let mover = null;                 // 이동 애니메이션
@@ -469,6 +555,28 @@ function genMap(){
       });
     }
   }
+  /* 등급 분포: 하 24 · 중 14 · 상 7, 그리고 보유한 만큼 황금 상자로 승격 */
+  const gpool = [];
+  Object.keys(GRADE_MIX).forEach(k => { for (let i=0; i<GRADE_MIX[k]; i++) gpool.push(k); });
+  while (gpool.length < nodes.length) gpool.push('low');
+  for (let i=gpool.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    const t = gpool[i]; gpool[i] = gpool[j]; gpool[j] = t;
+  }
+  nodes.forEach((n,i) => { n.grade = GRADES[gpool[i]]; });
+
+  let gleft = Math.min(goldStock, GOLD_CAP);
+  const order = nodes.map((_,i) => i);
+  for (let i=order.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    const t = order[i]; order[i] = order[j]; order[j] = t;
+  }
+  for (const i of order){
+    if (gleft <= 0) break;
+    if (nodes[i].grade.key === 'gold') continue;
+    nodes[i].grade = GRADES.gold; gleft--;
+  }
+
   const N = (r,c) => (r>=0 && r<ROWS && c>=0 && c<COLS) ? nodes[key(r,c)] : null;
 
   /* 격자 이웃 연결 */
@@ -603,7 +711,7 @@ function startRun(keepBuff){
   running = true;
   el('hint').classList.remove('fade');
   audio();
-  renderSlots(); updateHUD();
+  renderSlots(); updateHUD(); updateGoldUI();
   toast('상자를 열어 <b>담기/지나치기</b>를 고르자. 6개 담으면 완성 · 걸음 ' + steps + '보!');
 }
 
@@ -653,17 +761,54 @@ function arrive(node){
 }
 
 /* ---------- 담기 / 지나치기 ---------- */
+/* 이미 담은 번호와 견주어 '지나칠 이유'를 한 줄로 알려준다.
+   게임 진행을 돕는 연출일 뿐 당첨 확률과는 무관하다. */
+const bandOf = n => Math.min(4, Math.floor((n-1)/10));
+const bandName = b => (b*10+1) + '~' + Math.min(b*10+10, 45);
+function memoFor(num){
+  const cur = opened;
+  if (!cur.length) return { tone:'', txt:'첫 숫자다. 무엇을 담아도 열려 있다.' };
+  const b = bandOf(num);
+  const same = cur.filter(n => bandOf(n) === b).length;
+  if (same >= 2)
+    return { tone:'warn', txt:'이미 ' + bandName(b) + ' 구간을 ' + same + '개 담았다 — 번호가 한쪽으로 쏠린다' };
+  const near = cur.filter(n => Math.abs(n - num) === 1);
+  if (near.length)
+    return { tone:'warn', txt: near[0] + '번과 붙는 연속 번호다' };
+  const total = cur.length + 1;
+  const odd = cur.filter(n => n % 2).length + (num % 2 ? 1 : 0);
+  if (total >= 4 && (odd === total || odd === 0))
+    return { tone:'warn', txt:'담으면 ' + (odd === total ? '홀수' : '짝수') + '만 ' + total + '개 — 홀짝이 치우친다' };
+  if (same === 0)
+    return { tone:'good', txt:'아직 비어 있는 ' + bandName(b) + ' 구간이다 — 고르게 퍼진다' };
+  return { tone:'', txt:'무난하게 섞인다' };
+}
+
 function showChoice(node){
-  const st = ballStyle(node.num);
+  const st = ballStyle(node.num), gr = node.grade;
   const bEl = el('chBall');
   bEl.textContent = node.num;
   bEl.style.background = st.bg;
   bEl.classList.toggle('d', st.dark);
+
+  const gEl = el('chGrade');
+  gEl.textContent = gr.label + ' ' + gr.name;
+  gEl.style.color = gr.trim;
   el('chNum').textContent = node.num;
+  el('chEffect').textContent = gr.tag + ' · ' + gr.desc;
+  el('chGrade').title = '등급은 숫자와 무관하게 무작위로 배치된다';
+
+  const m = memoFor(node.num);
+  const mEl = el('chMemo');
+  mEl.textContent = '💡 ' + m.txt;
+  mEl.className = 'cmemo ' + m.tone;
+
   el('chSub').textContent = '담으면 ' + (opened.length + 1) + ' / ' + GOAL +
                             ' · 지나치면 이 상자는 다시 열 수 없다';
   const sb = el('skipBtn');
-  sb.disabled = steps < SKIP_COST;
+  const sc = skipCost(node);
+  sb.querySelector('em').textContent = sc ? sc + '보' : '공짜';
+  sb.disabled = steps < sc;
   sb.title = sb.disabled ? '걸음이 모자라 지나칠 수 없다' : '';
   el('choice').classList.add('on');
 }
@@ -676,29 +821,40 @@ function takeChest(){
   opened.push(node.num);
   pending = null; hideChoice();
 
-  if (buff.key === 'normal') steps += 1;
-  if (buff.key === 'good' && Math.random() < .25){
-    steps += 3; sfxLuck(); toast('🍀 행운의 보답! 걸음 +3');
-  }
+  const gr = node.grade;
+  if (gr.bonus > 0) steps += gr.bonus;
+  if (gr.key === 'gold'){ goldStock = Math.max(0, goldStock - 1); saveGold(); updateGoldUI(); }
   sfxTake();
   renderSlots();
   if (opened.length >= GOAL){ updateHUD(); finish(false); return; }
-  toast('숫자 ' + node.num + ' 담았다 · ' + (GOAL - opened.length) + '개 남음');
+  toast('숫자 ' + node.num + ' 담았다' + (gr.bonus ? ' · ' + gr.name + ' 걸음 +' + gr.bonus : '') +
+        ' · ' + (GOAL - opened.length) + '개 남음');
   updateHUD();
   checkStuck();
 }
+function skipCost(node){
+  let c = node.grade.skip;
+  if (buff.key === 'normal') c = Math.min(c, 1);     // 눈썰미: 상급도 1보
+  return c;
+}
 function skipChest(){
   if (!pending) return;
-  if (steps < SKIP_COST){
+  let cost = skipCost(pending);
+  if (steps < cost){
     sfxNo(); toast('걸음이 모자라 지나칠 수 없다. 담는 수밖에.');
     return;
   }
+  let free = false;
+  if (cost > 0 && buff.key === 'good' && Math.random() < .35){ free = true; cost = 0; }
   const node = pending;
   node.taken = false; node.skipped = true;
-  steps -= SKIP_COST; skipped++;
+  steps -= cost; skipped++;
   pending = null; hideChoice();
-  sfxSkip();
-  toast('🍃 ' + node.num + '번을 두고 간다 (걸음 -' + SKIP_COST + ')');
+  if (free){ sfxLuck(); toast('🍀 순풍! ' + node.num + '번을 걸음 없이 두고 간다'); }
+  else {
+    sfxSkip();
+    toast('🍃 ' + node.num + '번을 두고 간다' + (cost ? ' (걸음 -' + cost + ')' : ' (공짜)'));
+  }
   updateHUD();
   checkStuck();
 }
@@ -996,7 +1152,9 @@ function drawTrails(time){
   }
 }
 
-const BAND = n => n <= 15 ? { t:'작음', c:'#8fd3f4' } : (n <= 30 ? { t:'중간', c:'#f6dda1' } : { t:'큼', c:'#ff9c8a' });
+const BAND = n => n <= 15 ? { t:'1~15',  c:'#8fd3f4' }
+                : (n <= 30 ? { t:'16~30', c:'#f6dda1' }
+                :            { t:'31~45', c:'#ff9c8a' });
 
 function drawNode(n, time){
   const isCur = n === cur;
@@ -1010,27 +1168,54 @@ function drawNode(n, time){
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('숲 입구', n.x, n.y-32);
   } else if (!n.opened){
-    const bob = Math.sin(time*.0022 + n.bob)*1.6;
-    shadowE(n.x, n.y+3, 19, 6.5, .3);
+    const g = n.grade || GRADES.low;
+    const isGold = g.key === 'gold';
+    const bob = Math.sin(time*.0022 + n.bob) * (isGold ? 2.6 : 1.6);
     const y = n.y + bob;
-    ctx.fillStyle = '#6b4a2a';
+    shadowE(n.x, n.y+3, 19, 6.5, .3);
+
+    /* 황금 상자는 멀리서도 보이게 광채를 두른다 */
+    if (isGold){
+      const pu = .55 + .45*Math.sin(time*.004 + n.bob);
+      const gg = ctx.createRadialGradient(n.x, y-12, 3, n.x, y-12, 56);
+      gg.addColorStop(0, 'rgba(255,214,110,' + (.30 + pu*.22) + ')');
+      gg.addColorStop(1, 'rgba(255,214,110,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(n.x, y-12, 56, 0, 6.2832); ctx.fill();
+    }
+    ctx.fillStyle = g.body;
     ctx.beginPath(); ctx.roundRect(n.x-17, y-17, 34, 18, 3); ctx.fill();
-    ctx.fillStyle = '#7d5730';
+    ctx.fillStyle = g.lid;
     ctx.beginPath(); ctx.roundRect(n.x-17, y-26, 34, 12, 4); ctx.fill();
-    ctx.fillStyle = '#e9c46a';
+    ctx.fillStyle = g.trim;
     ctx.fillRect(n.x-17, y-16, 34, 3);
     ctx.fillRect(n.x-2.5, y-26, 5, 25);
     ctx.fillStyle = 'rgba(255,255,255,.12)';
     ctx.beginPath(); ctx.roundRect(n.x-14, y-24, 12, 5, 2); ctx.fill();
-    /* 나침반 버프: 이웃 상자 구간 힌트 */
-    if (buff.key === 'normal' && cur && cur.adj.some(l => l.to === n)){
+    /* 등급 표식: 뚜껑 위 보석 개수 */
+    for (let i=0; i<g.gems; i++){
+      ctx.fillStyle = g.trim;
+      ctx.beginPath();
+      ctx.arc(n.x - (g.gems-1)*4.5 + i*9, y-30.5, isGold ? 2.6 : 2.1, 0, 6.2832);
+      ctx.fill();
+    }
+    if (isGold && Math.random() < .12){
+      parts.push({ x: n.x + rnd(-20,20), y: y - rnd(0,30), vx: rnd(-8,8), vy: rnd(-26,-8),
+                   life:1, max:rnd(.5,1.1), size:rnd(1,2.3), col:'#fff0b8' });
+    }
+    /* 인접한 상자에는 등급(+나침반 버프면 번호 구간)을 글자로 알려준다 */
+    if (cur && cur.adj.some(l => l.to === n)){
+      const showBand = buff.key === 'normal';
       const b = BAND(n.num);
-      ctx.fillStyle = 'rgba(8,18,12,.9)';
-      ctx.beginPath(); ctx.roundRect(n.x-21, y+3, 42, 17, 8); ctx.fill();
-      ctx.strokeStyle = b.c; ctx.lineWidth = 1.1; ctx.stroke();
-      ctx.fillStyle = b.c; ctx.font = '800 11px system-ui,sans-serif';
+      const txt = g.name + (showBand ? ' · 번호 ' + b.t : '');
+      ctx.font = '800 11px system-ui,sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(b.t, n.x, y+12);
+      const w = ctx.measureText(txt).width + 16;
+      ctx.fillStyle = 'rgba(8,18,12,.92)';
+      ctx.beginPath(); ctx.roundRect(n.x - w/2, y+3, w, 17, 8); ctx.fill();
+      ctx.strokeStyle = g.trim; ctx.lineWidth = 1.1; ctx.stroke();
+      ctx.fillStyle = g.trim;
+      ctx.fillText(txt, n.x, y+12);
     }
   } else {
     const age = (performance.now() - (n.openT||0))/1000;
@@ -1260,6 +1445,81 @@ function renderHistory(){
   ).join('');
 }
 
+/* ---------- 행운의 상자 / 광고 ----------
+   실제 광고 SDK를 붙일 자리다. 지금은 5초 카운트다운 자리표시자로,
+   끝까지 본 경우에만 보상을 준다. runAd() 안의 타이머를 광고 네트워크의
+   '재생 완료' 콜백으로 바꾸면 그대로 연결된다. */
+const AD_SECONDS = 5;
+let adTimer = null;
+
+function updateGoldUI(){
+  el('goldCount').textContent = '행운의 상자 ' + goldStock + '개';
+  el('goldNote').innerHTML = goldStock >= GOLD_CAP
+    ? '가득 찼습니다 (최대 ' + GOLD_CAP + '개). 숲에 놓고 담아서 쓰세요.'
+    : '광고를 보면 1개씩 쌓입니다. 모은 만큼 숲에 <b>황금 상자</b>로 놓입니다.';
+  el('adBtn1').disabled = goldStock >= GOLD_CAP;
+  const chip = el('goldChip');
+  chip.style.display = goldStock > 0 ? '' : 'none';
+  chip.innerHTML = '⭐ 행운의 상자 <span>' + goldStock + '개</span>';
+}
+
+function openAd(){
+  if (goldStock >= GOLD_CAP){ toast('행운의 상자가 가득 찼습니다 (최대 ' + GOLD_CAP + '개)'); return; }
+  clearInterval(adTimer);
+  const doneBtn = el('adDone'), fill = el('adFill');
+  let left = AD_SECONDS;
+  doneBtn.disabled = true;
+  doneBtn.textContent = left + '초 남음…';
+  fill.style.width = '0%';
+  el('adModal').classList.add('on');
+  adTimer = setInterval(() => {
+    left--;
+    fill.style.width = ((AD_SECONDS - left) / AD_SECONDS * 100) + '%';
+    if (left <= 0){
+      clearInterval(adTimer); adTimer = null;
+      doneBtn.disabled = false;
+      doneBtn.textContent = '⭐ 행운의 상자 받기';
+      tone(880, .2, 'triangle', .1);
+    } else doneBtn.textContent = left + '초 남음…';
+  }, 1000);
+}
+function closeAd(){
+  clearInterval(adTimer); adTimer = null;
+  el('adModal').classList.remove('on');
+}
+function claimAd(){
+  if (el('adDone').disabled) return;
+  goldStock = Math.min(GOLD_CAP, goldStock + 1);
+  saveGold(); updateGoldUI(); closeAd();
+  sfxDone();
+  toast('⭐ 행운의 상자를 받았습니다! 지금 ' + goldStock + '개 · 다음 판 숲에 놓입니다');
+}
+el('adBtn1').addEventListener('click', () => { audio(); openAd(); });
+el('adBtn2').addEventListener('click', () => { audio(); openAd(); });
+el('adDone').addEventListener('click', claimAd);
+el('adCancel').addEventListener('click', () => { closeAd(); toast('광고를 끝까지 봐야 보상이 있습니다'); });
+
+/* 등급 범례 (버프 화면에 함께 노출) */
+function renderGradeLegend(){
+  const rows = ['low','mid','high','gold'].map(k => {
+    const g = GRADES[k];
+    const cnt = k === 'gold'
+      ? (goldStock ? goldStock + '개 놓임' : '없음 (광고로 획득)')
+      : GRADE_MIX[k] + '개';
+    return '<div class="bl"><span class="k" style="color:' + g.trim + '">' +
+           g.label + ' ' + g.name + '</span><span class="v">' + g.desc +
+           ' <b style="color:#9cb3a4;font-weight:600">· ' + cnt + '</b></span></div>';
+  }).join('');
+  el('gradeBox').innerHTML =
+    '<div class="buffhead"><span class="em">🎁</span><span>' +
+    '<div class="nm">상자 등급</div>' +
+    '<div class="sm">상자 색으로 등급을 알 수 있다 — 어디로 갈지, 무엇을 지나칠지의 기준</div></span></div>' +
+    rows +
+    '<div class="bl"><span class="k" style="color:#9cb3a4">유의</span><span class="v" style="color:#9cb3a4">' +
+    '등급은 <b>숫자 크기와 아무 상관이 없다</b>. 45개 상자에 무작위로 흩뿌려지며, ' +
+    '달라지는 것은 <b>걸음 보너스와 지나치기 비용</b>뿐이다.</span></div>';
+}
+
 /* ---------- 버프 선택 화면 ---------- */
 function showBuff(k){
   buff = BUFFS[k];
@@ -1268,6 +1528,7 @@ function showBuff(k){
     '<div class="nm">' + buff.name + '</div>' +
     '<div class="sm">대답: ' + buff.luck + ' · ' + buff.tag + '</div></span></div>' +
     buff.lines.map(l => '<div class="bl"><span class="k">' + l[0] + '</span><span class="v">' + l[1] + '</span></div>').join('');
+  renderGradeLegend();
   el('luckModal').classList.remove('on');
   el('buffModal').classList.add('on');
 }
@@ -1298,7 +1559,7 @@ el('histClear').addEventListener('click', () => {
   try { localStorage.removeItem(HKEY); } catch(e){}
   renderHistory();
 });
-el('copyBtn').addEventListener('click', () => {
+document.querySelector('.ticket').addEventListener('click', () => {
   if (!lastResult) return;
   const txt = '🌲 숲속 오솔길 보물찾기 · 로또 번호\n' + lastResult.main.join(', ') +
               '\n' + lastResult.em + ' ' + lastResult.buff + ' (' + lastResult.date + ')';
@@ -1341,6 +1602,8 @@ if (!CanvasRenderingContext2D.prototype.roundRect){
     return this;
   };
 }
+goldStock = loadGold();
+updateGoldUI();
 resize();
 makeGround();
 genMap();

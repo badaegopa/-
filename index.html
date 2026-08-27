@@ -326,6 +326,21 @@
   .achit .a2{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.5;}
   .achit .ac{font-size:11px;font-weight:900;color:#4bb98a;}
 
+  /* 행운의 토템 */
+  .totemrow{display:flex;align-items:center;gap:13px;background:rgba(120,90,180,.10);
+    border:1px solid rgba(205,180,255,.24);border-radius:16px;padding:11px 13px;
+    margin-bottom:10px;text-align:left;}
+  .tot-art{flex:0 0 auto;line-height:0;}
+  .tot-art svg{display:block;}
+  .totemrow .g1{display:block;font-size:13px;font-weight:900;color:#cdb4ff;}
+  .totemrow .g2{display:block;font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.55;}
+  .totemrow .gt{flex:1;min-width:0;display:block;}
+  .tot-big{display:flex;justify-content:center;margin-bottom:16px;
+    filter:drop-shadow(0 8px 26px rgba(205,180,255,.35));animation:totemUp .6s cubic-bezier(.2,1.3,.3,1);}
+  @keyframes totemUp{from{opacity:0;transform:translateY(18px) scale(.9)}to{opacity:1;transform:none}}
+  .goldenbtn{background:linear-gradient(135deg,#f7d774,#c08f26);margin-bottom:13px;}
+  #totemModal{z-index:72;}          /* 결과창·개발버튼보다 위 */
+
   /* 별 배치 선택 */
   .starpick{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;}
   .starpick button{width:46px;height:52px;border-radius:13px;font-size:17px;font-weight:900;
@@ -424,7 +439,7 @@
     .slot{width:31px;height:31px;font-size:13px;border-width:2px;}
     .buffchip{padding:4px 10px;font-size:10.5px;}
     .buffchip span{display:none;}
-    #goldChip span{display:inline;}
+    #goldChip span,#stepChip span,#totemChip span{display:inline;}
     .hint{max-width:46vw;font-size:10.5px;padding:7px 9px;line-height:1.5;}
     .card{padding:22px 17px;border-radius:19px;}
     .card h1{font-size:21px;}
@@ -478,6 +493,7 @@
       <div class="buffchip" id="buffChip">🍀 버프 <span>—</span></div>
       <div class="buffchip" id="goldChip" style="display:none">⭐ 별 <span>0</span></div>
       <button class="buffchip tapchip" id="stepChip" style="display:none">👣 보유 걸음 <span>0</span></button>
+      <div class="buffchip" id="totemChip" style="display:none">🗿 토템 <span>0/12</span></div>
     </div>
   </div>
   <div class="spacer"></div>
@@ -530,6 +546,13 @@
         <span class="g2" id="pDesc">로그인하면 업적과 순위표가 계정에 저장됩니다.</span>
       </span>
       <button class="playbtn" id="signBtn">로그인</button>
+    </div>
+    <div class="totemrow" id="totemRow">
+      <div class="tot-art" id="totemArt"></div>
+      <div class="gt">
+        <span class="g1" id="totemTitle">행운의 토템 0 / 12</span>
+        <span class="g2" id="totemNote">상자를 열 때 조각이 무작위로 떨어집니다.</span>
+      </div>
     </div>
     <div class="goldrow">
       <span class="gem">⭐</span>
@@ -584,10 +607,27 @@
     <p class="sub">모아둔 별을 이번 판 숲에 <b style="color:#f6dda1">황금 상자</b>로 놓을 수 있습니다.<br>
     <b style="color:#f6dda1">고른 수만큼 별이 소모</b>됩니다 — 찾지 못해도 돌아오지 않습니다.<br>
     아껴두려면 <b style="color:#f6dda1">0개</b>를 고르세요.</p>
+    <button class="cta goldenbtn" id="goldenBtn" style="display:none">🗿 전체 황금상자 모드로 들어가기</button>
     <div class="starpick" id="starPick"></div>
     <div class="starinfo" id="starInfo"></div>
     <button class="cta" id="starGo">🌲 이 구성으로 숲에 들어가기</button>
     <button class="ghost" id="starBack">← 버프 다시 보기</button>
+  </div>
+</div>
+
+<!-- 토템 완성 -->
+<div class="modal" id="totemModal">
+  <div class="card">
+    <h2>🗿 행운의 토템 완성!</h2>
+    <p class="sub">열두 조각이 모두 모였습니다.<br>
+    토템은 <b style="color:#f6dda1">전체 황금상자 모드 1회권</b>이 되어 사라집니다.</p>
+    <div class="tot-big" id="totemBig"></div>
+    <div class="starinfo">
+      <b>전체 황금상자 모드</b> — 숲의 <b>45개 상자가 모두 황금 상자</b>가 됩니다.<br>
+      담으면 걸음 +4, 지나치기는 공짜. <b>단 한 판</b>만 쓸 수 있습니다.<br>
+      <span style="color:#6f8478">숲에 들어가기 전 화면에서 사용 여부를 고르세요.</span>
+    </div>
+    <button class="cta" id="totemClose">좋다</button>
   </div>
 </div>
 
@@ -747,6 +787,8 @@ const START_STEPS  = 18;               // 매 판 시작 걸음 — 버프와 �
 const MAP_GOLD_MAX = 6;                // 한 판 숲에 놓을 수 있는 황금 상자 최대치
 const AD_STARS     = 1;                // 광고 1회 보상: 별
 const AD_STEPS     = 2;                // 광고 1회 보상: 걸음 (창고에 쌓인다)
+const TOTEM_N      = 12;               // 행운의 토템 조각 수
+const TOTEM_DROP   = 0.18;             // 상자를 열 때 조각이 떨어질 확률
 const WALK_SPEED = 340;                // px/s
 
 /* ---------- 유틸 ---------- */
@@ -841,6 +883,77 @@ const GRADES = {
 const GRADE_MIX = { low: 24, mid: 14, high: 7 };   // 45개 분포
 const DICE_COUNT = 6;                              // 오솔길 중간에 끼우는 주사위 상자
 const DICE_CHAIN_MAX = 3;                          // 연속 주사위 상한 (무한 이동 방지)
+/* =====================================================================
+   행운의 토템 — 12조각 퍼즐
+   상자를 열 때 아직 없는 조각 중 하나가 무작위로 떨어진다.
+   12조각을 채우면 '전체 황금상자 모드' 1회권으로 바뀌고 토템은 소멸한다.
+   ===================================================================== */
+const TOTEM_KEY = 'forest-totem-v1';
+const TOTEM_PARTS = [
+  { n:'밑동',   c:'#6b4a2a' }, { n:'뿌리무늬', c:'#74512e' },
+  { n:'물결',   c:'#4f6069' }, { n:'이빨',     c:'#5b6b74' },
+  { n:'부리',   c:'#8a5a2b' }, { n:'눈',       c:'#7b322d' },
+  { n:'날개',   c:'#2f7d4f' }, { n:'잎사귀',   c:'#2a6a42' },
+  { n:'소용돌이',c:'#48376b' }, { n:'달',       c:'#5b4785' },
+  { n:'해',     c:'#c08f26' }, { n:'꼭대기',   c:'#e0a92e' }
+];
+const totem      = () => readJSON(TOTEM_KEY, { got:[], tickets:0 });
+const saveTotem  = t  => writeJSON(TOTEM_KEY, t);
+const totemDone  = () => totem().got.length >= TOTEM_N;
+const goldenTickets = () => totem().tickets || 0;
+
+/* 상자를 열 때 호출 — 조각을 얻으면 인덱스를, 아니면 null 을 돌려준다.
+   12번째 조각이면 { piece, complete:true } 로 알린다. */
+function tryTotemDrop(){
+  const t = totem();
+  if (Math.random() >= TOTEM_DROP) return null;
+  const left = [];
+  for (let i=0; i<TOTEM_N; i++) if (!t.got.includes(i)) left.push(i);
+  if (!left.length) return null;
+  const piece = left[Math.floor(Math.random()*left.length)];
+  t.got.push(piece);
+  const complete = t.got.length >= TOTEM_N;
+  if (complete){ t.tickets = (t.tickets||0) + 1; t.got = []; }   /* 1회권으로 바뀌고 소멸 */
+  saveTotem(t);
+  cloudSync();
+  return { piece, complete, have: complete ? TOTEM_N : t.got.length };
+}
+
+/* 토템 그림 — 아래에서 위로 12층. 없는 조각은 점선으로 비워 둔다. */
+function totemSVG(got, size){
+  const w = 76, segH = 15, h = segH*TOTEM_N + 10;
+  let out = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + (size||96) + '" ' +
+            'height="' + ((size||96)*h/w) + '" aria-hidden="true">';
+  for (let i=0; i<TOTEM_N; i++){
+    const has = got.includes(i);
+    const y = h - 6 - (i+1)*segH;
+    const inset = 4 + i*1.4;                       /* 위로 갈수록 좁아진다 */
+    const x = inset, ww = w - inset*2;
+    const p = TOTEM_PARTS[i];
+    if (!has){
+      out += '<rect x="' + x + '" y="' + y + '" width="' + ww + '" height="' + (segH-2) +
+             '" rx="3" fill="none" stroke="rgba(255,255,255,.16)" stroke-dasharray="3 3"/>';
+      continue;
+    }
+    out += '<rect x="' + x + '" y="' + y + '" width="' + ww + '" height="' + (segH-2) +
+           '" rx="3" fill="' + p.c + '" stroke="rgba(0,0,0,.35)" stroke-width=".6"/>';
+    const cx = w/2, cy = y + (segH-2)/2;
+    if (i === TOTEM_N-1)                            /* 꼭대기: 관 */
+      out += '<path d="M' + (cx-9) + ' ' + (cy+3) + ' L' + cx + ' ' + (cy-5) +
+             ' L' + (cx+9) + ' ' + (cy+3) + 'Z" fill="#fff0b8"/>';
+    else if (i % 3 === 0)                            /* 눈 한 쌍 */
+      out += '<circle cx="' + (cx-7) + '" cy="' + cy + '" r="2.1" fill="rgba(255,255,255,.85)"/>' +
+             '<circle cx="' + (cx+7) + '" cy="' + cy + '" r="2.1" fill="rgba(255,255,255,.85)"/>';
+    else if (i % 3 === 1)                            /* 물결 */
+      out += '<path d="M' + (cx-12) + ' ' + cy + ' q3 -3 6 0 t6 0 t6 0" fill="none" ' +
+             'stroke="rgba(255,255,255,.7)" stroke-width="1.4"/>';
+    else                                             /* 마름모 */
+      out += '<path d="M' + cx + ' ' + (cy-4) + ' L' + (cx+5) + ' ' + cy +
+             ' L' + cx + ' ' + (cy+4) + ' L' + (cx-5) + ' ' + cy + 'Z" fill="rgba(255,255,255,.75)"/>';
+  }
+  return out + '</svg>';
+}
+
 /* 광고로 모은 걸음 — 판이 바뀌어도 사라지지 않는 창고 */
 const BKEY = 'forest-banked-steps-v1';
 const bankedSteps = () => { try { return Math.max(0, parseInt(localStorage.getItem(BKEY)||'0',10)||0); } catch(e){ return 0; } };
@@ -860,6 +973,7 @@ let nodes = [], edges = [], entrance = null;
 let cur = null, steps = 0, maxSteps = 0, opened = [];
 let pending = null, skipped = 0;      // 담기/지나치기 결정 대기 노드, 지나친 상자 수
 let placeGold = 0;                    // 이번 판 숲에 놓을 황금 상자 수 (별 소모량)
+let goldenMode = false;               // 전체 황금상자 모드 (토템 1회권)
 let adSteps = 0;                      // 이번 판에 광고로 받은 걸음
 let forced = null;                    // 주사위로 끌려가는 중 { left, from }
 let diceChain = 0, diceRolls = 0;     // 연속 주사위 횟수 / 한 판 총 굴림
@@ -955,7 +1069,10 @@ function genMap(){
   }
   nodes.forEach((n,i) => { n.grade = GRADES[gpool[i]]; });
 
-  let gleft = clamp(placeGold, 0, MAP_GOLD_MAX);
+  if (goldenMode){                       /* 토템 1회권 — 45개 상자 전부 황금 */
+    nodes.forEach(n => { if (n.chest) n.grade = GRADES.gold; });
+  }
+  let gleft = goldenMode ? 0 : clamp(placeGold, 0, MAP_GOLD_MAX);
   const order = nodes.map((_,i) => i);
   for (let i=order.length-1; i>0; i--){
     const j = Math.floor(Math.random()*(i+1));
@@ -1137,7 +1254,7 @@ const playerPos = { x:0, y:0 };
 
 /* ---------- 진행 ---------- */
 function startRun(keepBuff){
-  ['luckModal','buffModal','starModal','resultModal','failModal','histModal','achModal','lbModal','devModal']
+  ['luckModal','buffModal','starModal','resultModal','failModal','histModal','achModal','lbModal','devModal','totemModal']
     .forEach(m => el(m).classList.remove('on'));
   if (!keepBuff) buff = BUFFS.normal;
   genMap();
@@ -1209,6 +1326,18 @@ function arrive(node){
     burst(node.x, node.y);
     pending = node;                       // 담을지 지나칠지 결정 대기
     showChoice(node);
+    const drop = tryTotemDrop();          // 열었으니 조각이 떨어질 수 있다
+    if (drop){
+      updateHUD();
+      if (drop.complete){
+        [523,659,784,1046,1318].forEach((f,i) => tone(f,.45,'triangle',.12,i*.1));
+        setTimeout(showTotemComplete, 500);
+      } else {
+        [740,988].forEach((f,i) => tone(f,.22,'triangle',.1,i*.07));
+        toast('🗿 <b>' + TOTEM_PARTS[drop.piece].n + '</b> 조각 획득 · 토템 ' +
+              drop.have + '/' + TOTEM_N);
+      }
+    }
     updateHUD();
     return;
   }
@@ -1449,7 +1578,7 @@ function finish(byWind){
     '<b style="color:#8a7f66">제 ' + round + '회 응모</b> · 추첨 ' + fmtDate(drawTimeOf(round)) + '<br>' +
     date + '<br>' + buff.em + ' ' + buff.name + ' · 이동 ' + moveCount + '회 · 지나친 상자 ' +
     skipped + '개' + (diceRolls ? ' · 🎲 ' + diceRolls + '번' : '') +
-    (adSteps ? ' · 📺 걸음 +' + adSteps : '') +
+    (adSteps ? ' · 📺 걸음 +' + adSteps : '') + (goldenMode ? ' · 🗿 황금모드' : '') +
     ' · 남은 걸음 ' + steps + '보 · ' + fmtTime(elapsed);
   setTimeout(() => openModal('resultModal'), byWind ? 200 : 900);
 }
@@ -2142,6 +2271,7 @@ function updateHUD(){
   const bk = bankedSteps(), chip = el('stepChip');
   chip.style.display = bk > 0 ? '' : 'none';
   chip.innerHTML = '👣 보유 걸음 <span>' + bk + '보</span>';
+  updateTotemUI();
   el('stepFill').style.width = clamp(steps/Math.max(maxSteps,1), 0, 1)*100 + '%';
   el('stepsBox').classList.toggle('low', steps <= 4);
   el('buffChip').innerHTML = buff.em + ' ' + buff.name + ' <span>· ' + buff.tag + '</span>';
@@ -2605,13 +2735,20 @@ function updatePlayUI(){
    최근 1회차분만 들어간다. */
 function cloudPayload(){
   return { v:1, gold: goldStock, banked: bankedSteps(), issued: issuedNo(),
-           log: hitLog(), ach: achDone, tickets: loadHistory() };
+           totem: totem(), log: hitLog(), ach: achDone, tickets: loadHistory() };
 }
 function applyCloud(d){
   if (!d || d.v !== 1) return false;
   let changed = false;
   if (typeof d.gold === 'number' && d.gold > goldStock){
     goldStock = d.gold; saveGold(); changed = true;
+  }
+  if (d.totem && Array.isArray(d.totem.got)){
+    const cur = totem();
+    if (d.totem.got.length > cur.got.length || (d.totem.tickets||0) > (cur.tickets||0)){
+      saveTotem({ got: d.totem.got, tickets: Math.max(cur.tickets||0, d.totem.tickets||0) });
+      changed = true;
+    }
   }
   if (typeof d.banked === 'number' && d.banked > bankedSteps()){
     setBanked(d.banked); changed = true;
@@ -2729,6 +2866,30 @@ async function watchAd(){
   }
 }
 
+function updateTotemUI(){
+  const t = totem(), n = t.got.length;
+  el('totemArt').innerHTML = totemSVG(t.got, 58);
+  el('totemTitle').textContent = goldenTickets()
+    ? '🗿 전체 황금상자 모드 ' + goldenTickets() + '회 보유'
+    : '행운의 토템 ' + n + ' / ' + TOTEM_N;
+  el('totemNote').innerHTML = goldenTickets()
+    ? '숲에 들어가기 전 화면에서 사용할 수 있습니다.'
+    : (n ? '남은 조각 <b>' + (TOTEM_N - n) + '개</b> · 상자를 열 때 무작위로 떨어집니다.'
+         : '상자를 열 때 조각이 무작위로 떨어집니다. 12조각을 모으면 <b>전체 황금상자 모드</b>가 됩니다.');
+  const chip = el('totemChip');
+  chip.style.display = (n || goldenTickets()) ? '' : 'none';
+  chip.innerHTML = goldenTickets()
+    ? '🗿 <span>황금모드 ' + goldenTickets() + '회</span>'
+    : '🗿 토템 <span>' + n + '/' + TOTEM_N + '</span>';
+}
+function showTotemComplete(){
+  const full = [];
+  for (let i=0; i<TOTEM_N; i++) full.push(i);
+  el('totemBig').innerHTML = totemSVG(full, 132);
+  updateTotemUI();
+  openModal('totemModal');
+}
+
 function updateGoldUI(){
   el('goldCount').textContent = '행운의 상자 ' + goldStock + '개';
   el('goldNote').innerHTML =
@@ -2768,14 +2929,15 @@ el('devFrame').addEventListener('change', e => {
   setTimeout(resize, 60);
 });
 el('devReset').addEventListener('click', () => {
-  try { [HKEY, GKEY, AKEY, LKEY, SKEY, WKEY, LOGKEY, ISKEY, BKEY].forEach(k => localStorage.removeItem(k)); } catch(e){}
-  goldStock = 0; achDone = {}; placeGold = 0;
-  updateGoldUI(); updatePlayUI(); updateHUD();
+  try { [HKEY, GKEY, AKEY, LKEY, SKEY, WKEY, LOGKEY, ISKEY, BKEY, TOTEM_KEY]
+        .forEach(k => localStorage.removeItem(k)); } catch(e){}
+  goldStock = 0; achDone = {}; placeGold = 0; goldenMode = false;
+  updateGoldUI(); updatePlayUI(); updateHUD(); updateTotemUI();
   toast('저장 데이터를 초기화했습니다');
 });
 
 /* ---------- 안드로이드 뒤로가기 ---------- */
-const MODALS = ['adModal','devModal','lbModal','achModal','histModal','failModal','resultModal','starModal','buffModal'];
+const MODALS = ['adModal','totemModal','devModal','lbModal','achModal','histModal','failModal','resultModal','starModal','buffModal'];
 function openModal(id){
   el(id).classList.add('on');
   try { history.pushState({ modal:id }, ''); } catch(e){}
@@ -2805,6 +2967,9 @@ function renderGradeLegend(){
     '<div class="nm">상자 등급</div>' +
     '<div class="sm">상자 색으로 등급을 알 수 있다 — 어디로 갈지, 무엇을 지나칠지의 기준</div></span></div>' +
     rows +
+    '<div class="bl"><span class="k" style="color:#cdb4ff">🗿 행운의 토템</span><span class="v">' +
+    '상자를 열 때 <b>12조각</b> 중 하나가 무작위로 떨어진다 · 다 모으면 ' +
+    '<b>전체 황금상자 모드</b> 1회권이 되고 토템은 사라진다</span></div>' +
     '<div class="bl"><span class="k" style="color:#cdb4ff">🎲 주사위 상자</span><span class="v">' +
     '오솔길 <b>중간</b>에 6개 · 열면 1~6이 나오고 그 수만큼 <b>걸음 없이</b> 무작위로 끌려간다' +
     '</span></div>' +
@@ -2834,7 +2999,8 @@ el('reLuckBtn').addEventListener('click', () => {
 });
 /* 버프 확정 → 별 배치 선택 (별이 없으면 건너뛴다) */
 function openStarPick(){
-  if (goldStock <= 0){ placeGold = 0; startRun(true); return; }
+  goldenMode = false;
+  if (goldStock <= 0 && goldenTickets() <= 0){ placeGold = 0; startRun(true); return; }
   placeGold = Math.min(goldStock, MAP_GOLD_MAX);
   renderStarPick();
   closeModal('buffModal');
@@ -2849,6 +3015,9 @@ function renderStarPick(){
             (i === placeGold ? ' class="on"' : '') + '>' + i +
             '<em>' + (i === 0 ? '아낌' : '별 ' + i) + '</em></button>';
   }
+  const gb = el('goldenBtn');
+  gb.style.display = goldenTickets() > 0 ? '' : 'none';
+  gb.textContent = '🗿 전체 황금상자 모드로 들어가기 (' + goldenTickets() + '회)';
   el('starPick').innerHTML = html;
   el('starPick').querySelectorAll('button').forEach(b =>
     b.addEventListener('click', () => { placeGold = +b.dataset.n; renderStarPick(); }));
@@ -2864,7 +3033,18 @@ function renderStarPick(){
 }
 el('enterBtn').addEventListener('click', openStarPick);
 el('starBack').addEventListener('click', () => { closeModal('starModal'); openModal('buffModal'); });
+el('goldenBtn').addEventListener('click', () => {
+  const t = totem();
+  if (!t.tickets) return;
+  t.tickets--; saveTotem(t);
+  goldenMode = true; placeGold = 0;
+  updateTotemUI(); cloudSync();
+  startRun(true);
+  toast('🗿 <b>전체 황금상자 모드</b> — 45개 상자가 모두 황금이다');
+});
+el('totemClose').addEventListener('click', () => closeModal('totemModal'));
 el('starGo').addEventListener('click', () => {
+  goldenMode = false;
   const use = clamp(placeGold, 0, Math.min(goldStock, MAP_GOLD_MAX));
   goldStock -= use; placeGold = use;
   saveGold(); updateGoldUI(); cloudSync();
@@ -2945,6 +3125,7 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
 
 goldStock = loadGold();
 updateGoldUI();
+updateTotemUI();
 updatePlayUI();
 
 /* 앱을 켤 때 지난 회차 티켓을 채점하고, 당첨이 있으면 알려준다 */

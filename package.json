@@ -1,0 +1,25 @@
+{
+  "name": "forest-trail-lotto",
+  "version": "1.0.0",
+  "description": "숲속 오솔길 보물찾기 — 오솔길을 따라 상자 여섯을 열어 만드는 로또 6/45 번호 생성 게임",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-www.mjs",
+    "serve": "npx http-server . -p 8080 -c-1",
+    "cap:add": "npm run build && npx cap add android",
+    "cap:sync": "npm run build && npx cap sync android",
+    "cap:open": "npm run cap:sync && npx cap open android",
+    "android:build": "npm run cap:sync && cd android && ./gradlew bundleRelease"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/splash-screen": "^6.0.3",
+    "@capacitor/status-bar": "^6.0.2"
+  }
+}

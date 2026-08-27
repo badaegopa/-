@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0c1c13">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>숲속 오솔길 보물찾기 · 로또 번호 생성기</title>
 <style>
   :root{
@@ -164,6 +169,7 @@
     background:linear-gradient(135deg,var(--gold),#d4a949);color:#22160a;
     box-shadow:0 8px 24px rgba(233,196,106,.22);}
   .cta:active{transform:translateY(1px);}
+  .cta:disabled{opacity:.4;box-shadow:none;}
   .ghost{width:100%;padding:12px;border-radius:12px;margin-top:9px;font-size:13.5px;font-weight:800;
     background:transparent;border:1px solid var(--line);color:var(--gold-2);}
   .row2{display:flex;gap:9px;margin-top:9px;}
@@ -182,9 +188,11 @@
   .goldrow{display:flex;align-items:center;gap:11px;background:rgba(233,196,106,.08);
     border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:14px;text-align:left;}
   .goldrow .gem{font-size:26px;line-height:1;}
-  .goldrow .gt{flex:1;min-width:0;}
-  .goldrow .g1{font-size:14px;font-weight:900;color:var(--gold-2);}
-  .goldrow .g2{font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.55;}
+  .goldrow .gt,.playrow .gt{flex:1;min-width:0;display:block;}
+  .goldrow .g1,.playrow .g1{display:block;font-size:14px;font-weight:900;color:var(--gold-2);}
+  .goldrow .g2,.playrow .g2{display:block;font-size:11.5px;color:var(--dim);
+    margin-top:3px;line-height:1.55;}
+  .playrow .g1{font-size:13px;}
   .adbtn{background:linear-gradient(135deg,#3d8f6a,#2b6b4d);border:none;color:#eafff4;
     border-radius:12px;padding:11px 14px;font-size:13px;font-weight:900;white-space:nowrap;}
   .adbtn:disabled{opacity:.45;}
@@ -198,6 +206,118 @@
     background:linear-gradient(90deg,#4bb98a,var(--gold));transition:width .25s linear;}
   .ticket{cursor:pointer;}
   .tcopy{font-size:10.5px;color:#a99b7d;margin-top:9px;}
+
+  /* ================= Play 목업 셸 ================= */
+  #splash{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:6px;
+    background:radial-gradient(120% 90% at 50% 30%,#16341f 0%,#081310 70%);
+    transition:opacity .5s ease,visibility .5s;}
+  #splash.gone{opacity:0;visibility:hidden;}
+  .sp-icon{width:104px;height:104px;border-radius:26px;display:grid;place-items:center;font-size:54px;
+    background:linear-gradient(150deg,#2f7d4f,#14402a);
+    box-shadow:0 18px 44px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.16);margin-bottom:16px;}
+  .sp-name{font-size:20px;font-weight:900;color:var(--gold-2);letter-spacing:-.01em;}
+  .sp-sub{font-size:11px;letter-spacing:.26em;color:#6f8478;font-weight:700;text-transform:uppercase;}
+  .sp-dots{display:flex;gap:6px;margin-top:26px;}
+  .sp-dots i{width:6px;height:6px;border-radius:50%;background:var(--gold);opacity:.3;
+    animation:spd 1.1s infinite;}
+  .sp-dots i:nth-child(2){animation-delay:.16s} .sp-dots i:nth-child(3){animation-delay:.32s}
+  @keyframes spd{0%,100%{opacity:.25;transform:translateY(0)}45%{opacity:1;transform:translateY(-4px)}}
+  .sp-foot{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);
+    font-size:10.5px;color:#5d7268;letter-spacing:.05em;}
+
+  /* 상태바 프레임 (목업 설정에서 켜기) */
+  #statusbar{position:fixed;top:0;left:0;right:0;height:28px;z-index:88;display:none;
+    align-items:center;justify-content:space-between;padding:0 16px;font-size:11px;font-weight:700;
+    color:#cfe0d3;background:rgba(0,0,0,.55);pointer-events:none;letter-spacing:.02em;}
+  body.frame #statusbar{display:flex;}
+  body.frame #hud{padding-top:34px;}
+  body.frame::before{content:'';position:fixed;top:0;left:50%;transform:translateX(-50%);
+    width:120px;height:26px;background:#000;border-radius:0 0 15px 15px;z-index:89;pointer-events:none;}
+
+  /* Play 게임즈 로그인 줄 */
+  .playrow{display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:11px 13px;
+    margin-bottom:10px;text-align:left;}
+  .pavatar{width:38px;height:38px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;
+    font-size:16px;font-weight:900;color:#0d2116;background:linear-gradient(140deg,#8ab4f8,#4285f4);}
+  .playrow.out .pavatar{background:rgba(255,255,255,.10);color:#8ba193;}
+  .playbtn{background:#fff;color:#1f1f1f;border:none;border-radius:11px;padding:9px 15px;
+    font-size:12.5px;font-weight:900;white-space:nowrap;}
+  .playrow.in .playbtn{background:transparent;border:1px solid var(--line);color:var(--gold-2);}
+
+  /* 업적 배너 */
+  #achToast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);
+    transform:translate(-50%,-140%);z-index:95;display:flex;align-items:center;gap:11px;
+    background:rgba(12,26,18,.97);border:1px solid var(--line);border-radius:15px;
+    padding:11px 17px 11px 13px;box-shadow:0 14px 40px rgba(0,0,0,.55);
+    transition:transform .45s cubic-bezier(.2,1.2,.3,1);pointer-events:none;max-width:92vw;}
+  #achToast.on{transform:translate(-50%,0);}
+  .ac-ico{font-size:26px;}
+  .ac-txt{display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;}
+  .ac-txt b{font-size:13.5px;color:var(--gold-2);}
+  .ac-txt span{font-size:11px;color:var(--dim);}
+
+  /* 리워드 광고 전체화면 */
+  .modal.adfull{padding:0;background:#05100b;}
+  .modal.adfull.on{display:grid;place-items:stretch;}
+  .adscreen{display:flex;flex-direction:column;height:100%;width:100%;
+    padding:calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);}
+  .adtop{display:flex;align-items:center;gap:10px;}
+  .adbadge{font-size:10px;font-weight:900;letter-spacing:.08em;color:#0d2116;background:#e9c46a;
+    border-radius:5px;padding:3px 7px;}
+  .adtimer{margin-left:auto;font-size:12px;font-weight:900;color:#cfe0d3;
+    background:rgba(255,255,255,.10);border-radius:999px;width:28px;height:28px;
+    display:grid;place-items:center;font-variant-numeric:tabular-nums;}
+  .adx{width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.12);
+    color:#e9f2e7;font-size:14px;font-weight:900;display:grid;place-items:center;}
+  .adstage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:12px;text-align:center;border:1px dashed rgba(233,196,106,.30);border-radius:18px;
+    margin:14px 0;padding:24px 18px;background:#0a1a12;}
+  .adart{font-size:60px;line-height:1;}
+  .adtitle{font-size:15px;font-weight:900;color:var(--gold-2);}
+  .adcopy{font-size:12.5px;color:var(--dim);line-height:1.65;}
+  .adreward{margin-top:6px;font-size:12px;color:#bfe6c6;background:rgba(75,185,138,.12);
+    border:1px solid rgba(75,185,138,.3);border-radius:999px;padding:7px 14px;}
+  .adbottom{display:flex;flex-direction:column;gap:10px;}
+  .adnote{font-size:10.5px;color:#6e8478;text-align:center;}
+  .adbar{height:6px;border-radius:99px;background:rgba(255,255,255,.10);overflow:hidden;}
+  .adbar i{display:block;height:100%;width:0%;border-radius:99px;
+    background:linear-gradient(90deg,#4bb98a,var(--gold));transition:width .25s linear;}
+
+  /* 업적 목록 */
+  .achit{display:flex;gap:11px;align-items:center;background:rgba(0,0,0,.26);
+    border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:11px 12px;margin-bottom:8px;}
+  .achit .ai{font-size:24px;width:34px;text-align:center;filter:grayscale(1);opacity:.4;}
+  .achit.got .ai{filter:none;opacity:1;}
+  .achit .at{flex:1;min-width:0;}
+  .achit .a1{font-size:13px;font-weight:900;color:#8ba193;}
+  .achit.got .a1{color:var(--gold-2);}
+  .achit .a2{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.5;}
+  .achit .ac{font-size:11px;font-weight:900;color:#4bb98a;}
+
+  /* 순위표 */
+  .lbit{display:flex;gap:11px;align-items:center;background:rgba(0,0,0,.26);
+    border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:10px 12px;margin-bottom:7px;}
+  .lbit.me{border-color:var(--gold);background:rgba(233,196,106,.10);}
+  .lbit .rk{width:26px;font-size:13px;font-weight:900;color:var(--dim);text-align:center;}
+  .lbit.me .rk{color:var(--gold-2);}
+  .lbit .nm{flex:1;min-width:0;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;}
+  .lbit .sc{font-size:13px;font-weight:900;color:var(--gold-2);font-variant-numeric:tabular-nums;}
+
+  /* 목업 개발자 패널 */
+  #devBtn{position:fixed;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:70;
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+    background:rgba(9,22,15,.85);color:var(--gold-2);font-size:15px;backdrop-filter:blur(6px);}
+  body.adplaying #devBtn{display:none;}   /* 광고 닫기(✕)를 가리지 않게 */
+  body.frame #devBtn{top:calc(env(safe-area-inset-top,0px) + 34px);}
+  .devbox{display:flex;flex-direction:column;gap:9px;margin-bottom:15px;}
+  label.dev{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.26);
+    border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:9px 12px;text-align:left;}
+  label.dev span{flex:1;font-size:12.5px;font-weight:700;color:#cfe0d3;}
+  label.dev select{background:#0d1f16;color:var(--gold-2);border:1px solid var(--line);
+    border-radius:9px;padding:7px 9px;font-size:12px;font-family:inherit;font-weight:700;}
 
   .hist{max-height:50vh;overflow-y:auto;text-align:left;margin-bottom:13px;}
   .hitem{background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.07);border-radius:13px;
@@ -248,6 +368,17 @@
 </style>
 </head>
 <body>
+<div id="splash">
+  <div class="sp-icon">🌲</div>
+  <div class="sp-name">숲속 오솔길 보물찾기</div>
+  <div class="sp-sub">Forest Trail Lotto</div>
+  <div class="sp-dots"><i></i><i></i><i></i></div>
+  <div class="sp-foot">목업 빌드 · Google Play 연동 전</div>
+</div>
+
+<div id="achToast"><span class="ac-ico">🏅</span>
+  <span class="ac-txt"><b id="acName">업적</b><span id="acDesc">달성</span></span></div>
+
 <canvas id="game"></canvas>
 
 <div id="hud">
@@ -299,6 +430,14 @@
     <h1>오늘 당신의 운은<br>좋습니까?</h1>
     <p class="sub">숲은 당신의 대답에 맞춰 채비를 내어줍니다.<br>대답에 따라 <b style="color:#f6dda1">서로 다른 버프</b>를 받습니다.<br>
     상자를 열면 <b style="color:#f6dda1">담을지 지나칠지</b> 고를 수 있습니다 (지나치기 1보).</p>
+    <div class="playrow" id="playRow">
+      <span class="pavatar" id="pAvatar">?</span>
+      <span class="gt">
+        <span class="g1" id="pName">Play 게임즈에 로그인하지 않음</span>
+        <span class="g2" id="pDesc">로그인하면 업적과 순위표가 계정에 저장됩니다.</span>
+      </span>
+      <button class="playbtn" id="signBtn">로그인</button>
+    </div>
     <div class="goldrow">
       <span class="gem">⭐</span>
       <span class="gt">
@@ -323,6 +462,10 @@
         <span class="col"><span class="t1">나쁨</span>
         <span class="t2">액땜한다 · 넉넉한 채비와 흔들림 없는 길</span></span>
       </button>
+    </div>
+    <div class="row2">
+      <button class="ghost" id="achBtn">🏅 업적</button>
+      <button class="ghost" id="lbBtn">🏆 순위표</button>
     </div>
     <button class="ghost" id="luckHistBtn">📜 지난 기록 보기</button>
     <p class="disc">오락용 무작위 번호 생성기입니다. 당첨을 보장하지 않으며 번호는 브라우저 암호학적 난수(crypto)로 섞습니다.</p>
@@ -357,6 +500,10 @@
       <button class="ghost" id="reAskBtn">🎲 운 다시 묻기</button>
       <button class="ghost" id="adBtn2">📺 광고 보고 ⭐ 받기</button>
     </div>
+    <div class="row2">
+      <button class="ghost" id="resAchBtn">🏅 업적</button>
+      <button class="ghost" id="resLbBtn">🏆 순위표</button>
+    </div>
     <button class="ghost" id="resHistBtn">📜 기록 보기</button>
   </div>
 </div>
@@ -372,22 +519,83 @@
 </div>
 
 <!-- 광고 -->
-<div class="modal" id="adModal">
-  <div class="card">
-    <h2>📺 광고 보기</h2>
-    <p class="sub">끝까지 보면 <b style="color:#f6dda1">행운의 상자 ⭐ 1개</b>를 받습니다.<br>
-    도중에 닫으면 보상이 없습니다.</p>
-    <div class="adbox">
-      <div class="adtag">광 고 영 역 · 샘 플</div>
-      <div class="adart">🌲</div>
-      <div class="adcopy">이 자리에 실제 광고가 표시됩니다.<br>
-      (현재는 동작 확인용 자리표시자입니다)</div>
-      <div class="adbar"><i id="adFill"></i></div>
+<!-- 리워드 광고 (AdMob 리워드 형식을 그대로 흉내 낸 목업) -->
+<div class="modal adfull" id="adModal">
+  <div class="adscreen">
+    <div class="adtop">
+      <span class="adbadge">테스트 광고</span>
+      <span class="adtimer" id="adTimer">5</span>
+      <button class="adx" id="adCancel" aria-label="닫기">✕</button>
     </div>
-    <button class="cta" id="adDone" disabled>5초 남음…</button>
-    <button class="ghost" id="adCancel">닫기</button>
+    <div class="adstage">
+      <div class="adart">🌲</div>
+      <div class="adtitle">여기에 실제 광고가 재생됩니다</div>
+      <div class="adcopy">AdMob <b>리워드 광고</b> 자리<br>
+        단위 ID를 넣으면 이 화면이 실제 광고로 바뀝니다</div>
+      <div class="adreward">시청 완료 시 <b>⭐ 행운의 상자 ×1</b></div>
+    </div>
+    <div class="adbottom">
+      <div class="adbar"><i id="adFill"></i></div>
+      <button class="cta" id="adDone" disabled>5초 남음…</button>
+      <div class="adnote">중간에 닫으면 보상이 지급되지 않습니다</div>
+    </div>
   </div>
 </div>
+
+<!-- 업적 -->
+<div class="modal" id="achModal">
+  <div class="card">
+    <h2>🏅 업적</h2>
+    <p class="sub"><span id="achCount">0 / 5</span> 달성</p>
+    <div class="hist" id="achList"></div>
+    <button class="cta" id="achClose">닫기</button>
+  </div>
+</div>
+
+<!-- 순위표 -->
+<div class="modal" id="lbModal">
+  <div class="card">
+    <h2>🏆 순위표</h2>
+    <p class="sub">남은 걸음이 많을수록 높은 점수 — 적게 걷고 여섯을 채운 사람이 위로 갑니다.</p>
+    <div class="hist" id="lbList"></div>
+    <p class="disc">목업 순위표입니다. Play 게임즈 순위표를 연결하면 실제 전 세계 순위로 바뀝니다.</p>
+    <button class="cta" id="lbClose">닫기</button>
+  </div>
+</div>
+
+<!-- 목업 개발자 패널 -->
+<button id="devBtn" title="목업 설정">🧪</button>
+<div class="modal" id="devModal">
+  <div class="card">
+    <h2>🧪 목업 설정</h2>
+    <p class="sub">Play 연동 전 흐름을 검증하기 위한 개발용 패널입니다.<br>
+    실제 배포 빌드에서는 숨겨집니다.</p>
+    <div class="devbox">
+      <label class="dev"><span>광고 결과</span>
+        <select id="devAd">
+          <option value="ok">정상 — 보상 지급</option>
+          <option value="nofill">재고 없음 (No fill)</option>
+          <option value="error">네트워크 오류</option>
+        </select></label>
+      <label class="dev"><span>광고 길이</span>
+        <select id="devLen">
+          <option value="5">5초</option><option value="15">15초</option><option value="30">30초</option>
+        </select></label>
+      <label class="dev"><span>로그인 상태</span>
+        <select id="devSign">
+          <option value="out">비로그인</option><option value="in">로그인됨</option>
+        </select></label>
+      <label class="dev"><span>기기 프레임</span>
+        <select id="devFrame">
+          <option value="off">끄기</option><option value="on">노치·상태바 표시</option>
+        </select></label>
+    </div>
+    <button class="ghost" id="devReset">저장 데이터 전체 초기화</button>
+    <button class="cta" id="devClose">닫기</button>
+  </div>
+</div>
+
+<div id="statusbar"><span>9:41</span><span class="sb-r">▮▮▮ ▲ 🔋</span></div>
 
 <!-- 5. 기록 -->
 <div class="modal" id="histModal">
@@ -750,7 +958,8 @@ const playerPos = { x:0, y:0 };
 
 /* ---------- 진행 ---------- */
 function startRun(keepBuff){
-  ['luckModal','buffModal','resultModal','failModal','histModal'].forEach(m => el(m).classList.remove('on'));
+  ['luckModal','buffModal','resultModal','failModal','histModal','achModal','lbModal','devModal']
+    .forEach(m => el(m).classList.remove('on'));
   if (!keepBuff) buff = BUFFS.normal;
   genMap();
   cur = entrance;
@@ -878,7 +1087,10 @@ function takeChest(){
 
   const gr = node.grade;
   if (gr.bonus > 0) steps += gr.bonus;
-  if (gr.key === 'gold'){ goldStock = Math.max(0, goldStock - 1); saveGold(); updateGoldUI(); }
+  if (gr.key === 'gold'){
+    goldStock = Math.max(0, goldStock - 1); saveGold(); updateGoldUI();
+    unlockAch('gold_take');
+  }
   sfxTake();
   renderSlots();
   if (opened.length >= GOAL){ updateHUD(); finish(false); return; }
@@ -922,7 +1134,7 @@ function checkStuck(){
     el('failSub').innerHTML =
       '걸음이 다했습니다. 상자는 <b style="color:#f6dda1">' + opened.length + ' / ' + GOAL + '</b>개를 열었습니다.<br>' +
       '숲의 바람에 맡기면 남은 ' + (GOAL - opened.length) + '개를 아직 열지 않은 상자 중에서 무작위로 채웁니다.';
-    el('failModal').classList.add('on');
+    openModal('failModal');
   }
 }
 
@@ -944,11 +1156,18 @@ function finish(byWind){
   el('resultSub').innerHTML = byWind
     ? '해는 저물었지만 숲의 바람이 나머지 숫자를 실어다 주었습니다.'
     : '오솔길을 따라 상자 여섯을 모두 열었습니다.';
+  /* 업적 · 순위표 (Play 연동 지점) */
+  unlockAch('first_run');
+  if (skipped >= 5) unlockAch('picky');
+  if (!byWind && steps <= 2) unlockAch('shoestring');
+  if (loadHistory().length >= 5) unlockAch('veteran');
+  if (!byWind) submitScore(steps);
+
   el('resultBalls').innerHTML = nums.map(ballHTML).join('');
   el('resultMeta').innerHTML =
     date + '<br>' + buff.em + ' ' + buff.name + ' · 이동 ' + moveCount + '회 · 지나친 상자 ' +
     skipped + '개 · 남은 걸음 ' + steps + '보 · ' + fmtTime(elapsed);
-  setTimeout(() => el('resultModal').classList.add('on'), byWind ? 200 : 900);
+  setTimeout(() => openModal('resultModal'), byWind ? 200 : 900);
 }
 
 function windFill(){
@@ -1599,8 +1818,183 @@ function renderHistory(){
    실제 광고 SDK를 붙일 자리다. 지금은 5초 카운트다운 자리표시자로,
    끝까지 본 경우에만 보상을 준다. runAd() 안의 타이머를 광고 네트워크의
    '재생 완료' 콜백으로 바꾸면 그대로 연결된다. */
-const AD_SECONDS = 5;
-let adTimer = null;
+/* =====================================================================
+   Play 플랫폼 계층 (목업)
+   ---------------------------------------------------------------------
+   실제 Android 빌드에서는 아래 NATIVE 분기가 동작한다.
+   WebView JS 인터페이스( window.AndroidBridge ) 또는 Capacitor 플러그인을
+   붙이고, 각 함수의 MOCK 분기만 걷어내면 그대로 연결된다.
+
+     · 리워드 광고  → AdMob Rewarded  (com.google.android.gms:play-services-ads)
+     · 로그인       → Play Games Services v2 (PlayGames.getGamesSignInClient)
+     · 업적/순위표  → AchievementsClient / LeaderboardsClient
+   실제 단위 ID·업적 ID는 PLAY.md 의 표를 참고해 교체한다.
+   ===================================================================== */
+const NATIVE = !!(window.AndroidBridge && window.AndroidBridge.showRewardedAd);
+
+/* 목업 설정 (개발용 패널에서 조작) */
+const DEV = { ad:'ok', len:5, frame:false };
+
+/* ---------- 저장 ---------- */
+const AKEY = 'forest-ach-v1', LKEY = 'forest-lb-v1', SKEY = 'forest-signin-v1';
+const readJSON = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch(e){ return d; } };
+const writeJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
+
+/* ---------- 업적 ---------- */
+const ACHS = [
+  { id:'first_run',  ico:'🌲', name:'첫 탐험',        desc:'번호 여섯을 처음으로 완성한다' },
+  { id:'gold_take',  ico:'⭐', name:'행운을 줍다',    desc:'황금 상자를 담는다' },
+  { id:'picky',      ico:'🍃', name:'까다로운 눈',    desc:'한 판에서 상자를 5개 이상 지나친다' },
+  { id:'shoestring', ico:'👣', name:'아슬아슬',        desc:'남은 걸음 2보 이하로 완주한다' },
+  { id:'veteran',    ico:'🏅', name:'숲의 단골',      desc:'탐험을 5번 완주한다' }
+];
+let achDone = readJSON(AKEY, {});
+
+function unlockAch(id){
+  if (achDone[id]) return;
+  const a = ACHS.find(x => x.id === id); if (!a) return;
+  achDone[id] = Date.now(); writeJSON(AKEY, achDone);
+  Play.unlockAchievement(id);
+  el('acName').textContent = a.name;
+  el('acDesc').textContent = a.desc;
+  const t = el('achToast');
+  t.classList.add('on');
+  [784,988,1175].forEach((f,i) => tone(f,.3,'triangle',.1,i*.08));
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), 3200);
+}
+function renderAch(){
+  const got = Object.keys(achDone).length;
+  el('achCount').textContent = got + ' / ' + ACHS.length;
+  el('achList').innerHTML = ACHS.map(a =>
+    '<div class="achit' + (achDone[a.id] ? ' got' : '') + '">' +
+    '<span class="ai">' + a.ico + '</span><span class="at">' +
+    '<div class="a1">' + a.name + '</div><div class="a2">' + a.desc + '</div></span>' +
+    (achDone[a.id] ? '<span class="ac">달성</span>' : '') + '</div>').join('');
+}
+
+/* ---------- 순위표 (남은 걸음이 곧 점수) ---------- */
+const LB_SEED = [
+  { n:'솔바람',   s:31 }, { n:'달빛나그네', s:27 }, { n:'초록발자국', s:24 },
+  { n:'이슬맺힘', s:21 }, { n:'밤샘탐험가', s:18 }, { n:'느린걸음',   s:14 },
+  { n:'첫숲',     s:11 }, { n:'등불지기',   s:8  }
+];
+function submitScore(score){
+  const board = readJSON(LKEY, []);
+  board.push({ n: Play.name(), s: score, me:true, t: Date.now() });
+  writeJSON(LKEY, board.slice(-30));
+  Play.submitScore(score);
+}
+function renderLB(){
+  const mine = readJSON(LKEY, []);
+  const best = mine.length ? Math.max(...mine.map(r => r.s)) : null;
+  const rows = LB_SEED.map(r => ({ ...r }));
+  if (best !== null) rows.push({ n: Play.name() + ' (나)', s: best, me:true });
+  rows.sort((a,b) => b.s - a.s);
+  el('lbList').innerHTML = rows.slice(0, 12).map((r,i) =>
+    '<div class="lbit' + (r.me ? ' me' : '') + '"><span class="rk">' + (i+1) + '</span>' +
+    '<span class="nm">' + r.n + '</span><span class="sc">' + r.s + '보</span></div>').join('')
+    + (best === null ? '<div class="empty">아직 완주 기록이 없습니다.<br>한 판 끝내면 순위에 오릅니다.</div>' : '');
+}
+
+/* ---------- Play 서비스 ---------- */
+const Play = {
+  signedIn: readJSON(SKEY, { in:false }).in,
+  name(){ return this.signedIn ? '숲지기' : '손님'; },
+
+  signIn(){
+    if (NATIVE) return window.AndroidBridge.signIn();       /* ← 실제: Play Games v2 */
+    this.signedIn = true; writeJSON(SKEY, { in:true });
+    updatePlayUI(); toast('Play 게임즈에 로그인했습니다 (목업)');
+  },
+  signOut(){
+    if (NATIVE) return window.AndroidBridge.signOut();
+    this.signedIn = false; writeJSON(SKEY, { in:false });
+    updatePlayUI(); toast('로그아웃했습니다 (목업)');
+  },
+  unlockAchievement(id){
+    if (NATIVE) window.AndroidBridge.unlockAchievement(id); /* ← 실제: AchievementsClient.unlock */
+  },
+  submitScore(v){
+    if (NATIVE) window.AndroidBridge.submitScore(v);        /* ← 실제: LeaderboardsClient.submitScore */
+  },
+  /* 리워드 광고: 끝까지 본 경우에만 resolve('rewarded') */
+  showRewardedAd(){
+    if (NATIVE) return new Promise(res => {                 /* ← 실제: RewardedAd.show */
+      window.onRewardedAdResult = r => res(r);
+      window.AndroidBridge.showRewardedAd();
+    });
+    return mockRewardedAd();
+  }
+};
+
+function updatePlayUI(){
+  const row = el('playRow');
+  row.classList.toggle('in', Play.signedIn);
+  row.classList.toggle('out', !Play.signedIn);
+  el('pAvatar').textContent = Play.signedIn ? '숲' : '?';
+  el('pName').textContent = Play.signedIn ? Play.name() + ' 님' : 'Play 게임즈에 로그인하지 않음';
+  el('pDesc').textContent = Play.signedIn
+    ? '업적과 순위표가 계정에 저장됩니다.'
+    : '로그인하면 업적과 순위표가 계정에 저장됩니다.';
+  el('signBtn').textContent = Play.signedIn ? '로그아웃' : '로그인';
+}
+
+/* ---------- 리워드 광고 목업 ---------- */
+let adTimer = null, adResolve = null;
+function mockRewardedAd(){
+  return new Promise(res => {
+    if (DEV.ad === 'nofill'){ res('nofill'); return; }
+    if (DEV.ad === 'error'){  res('error');  return; }
+    adResolve = res;
+    document.body.classList.add('adplaying');
+    const total = DEV.len;
+    let left = total;
+    const doneBtn = el('adDone'), fill = el('adFill'), tm = el('adTimer');
+    doneBtn.disabled = true;
+    doneBtn.textContent = left + '초 남음…';
+    tm.textContent = left;
+    fill.style.width = '0%';
+    openModal('adModal');
+    clearInterval(adTimer);
+    adTimer = setInterval(() => {
+      left--;
+      tm.textContent = Math.max(left, 0);
+      fill.style.width = ((total - left) / total * 100) + '%';
+      if (left <= 0){
+        clearInterval(adTimer); adTimer = null;
+        tm.textContent = '✓';
+        doneBtn.disabled = false;
+        doneBtn.textContent = '⭐ 행운의 상자 받기';
+        tone(880, .2, 'triangle', .1);
+      } else doneBtn.textContent = left + '초 남음…';
+    }, 1000);
+  });
+}
+function endAd(result){
+  clearInterval(adTimer); adTimer = null;
+  document.body.classList.remove('adplaying');
+  closeModal('adModal');
+  const r = adResolve; adResolve = null;
+  if (r) r(result);
+}
+
+async function watchAd(){
+  if (goldStock >= GOLD_CAP){ toast('행운의 상자가 가득 찼습니다 (최대 ' + GOLD_CAP + '개)'); return; }
+  audio();
+  const r = await Play.showRewardedAd();
+  if (r === 'rewarded'){
+    goldStock = Math.min(GOLD_CAP, goldStock + 1);
+    saveGold(); updateGoldUI();
+    sfxDone();
+    toast('⭐ 행운의 상자를 받았습니다! 지금 ' + goldStock + '개 · 다음 판 숲에 놓입니다');
+  } else if (r === 'nofill'){
+    toast('지금은 볼 수 있는 광고가 없습니다. 잠시 뒤 다시 시도해 주세요.');
+  } else if (r === 'error'){
+    toast('광고를 불러오지 못했습니다. 네트워크를 확인해 주세요.');
+  } else {
+    toast('광고를 끝까지 봐야 보상이 지급됩니다');
+  }
+}
 
 function updateGoldUI(){
   el('goldCount').textContent = '행운의 상자 ' + goldStock + '개';
@@ -1613,41 +2007,51 @@ function updateGoldUI(){
   chip.innerHTML = '⭐ 행운의 상자 <span>' + goldStock + '개</span>';
 }
 
-function openAd(){
-  if (goldStock >= GOLD_CAP){ toast('행운의 상자가 가득 찼습니다 (최대 ' + GOLD_CAP + '개)'); return; }
-  clearInterval(adTimer);
-  const doneBtn = el('adDone'), fill = el('adFill');
-  let left = AD_SECONDS;
-  doneBtn.disabled = true;
-  doneBtn.textContent = left + '초 남음…';
-  fill.style.width = '0%';
-  el('adModal').classList.add('on');
-  adTimer = setInterval(() => {
-    left--;
-    fill.style.width = ((AD_SECONDS - left) / AD_SECONDS * 100) + '%';
-    if (left <= 0){
-      clearInterval(adTimer); adTimer = null;
-      doneBtn.disabled = false;
-      doneBtn.textContent = '⭐ 행운의 상자 받기';
-      tone(880, .2, 'triangle', .1);
-    } else doneBtn.textContent = left + '초 남음…';
-  }, 1000);
+el('adBtn1').addEventListener('click', watchAd);
+el('adBtn2').addEventListener('click', watchAd);
+el('adDone').addEventListener('click', () => { if (!el('adDone').disabled) endAd('rewarded'); });
+el('adCancel').addEventListener('click', () => endAd('dismissed'));
+el('signBtn').addEventListener('click', () => Play.signedIn ? Play.signOut() : Play.signIn());
+el('achBtn').addEventListener('click', () => { renderAch(); openModal('achModal'); });
+el('lbBtn').addEventListener('click', () => { renderLB(); openModal('lbModal'); });
+el('resAchBtn').addEventListener('click', () => { renderAch(); openModal('achModal'); });
+el('resLbBtn').addEventListener('click', () => { renderLB(); openModal('lbModal'); });
+el('achClose').addEventListener('click', () => closeModal('achModal'));
+el('lbClose').addEventListener('click', () => closeModal('lbModal'));
+
+/* ---------- 목업 개발자 패널 ---------- */
+el('devBtn').addEventListener('click', () => openModal('devModal'));
+el('devClose').addEventListener('click', () => closeModal('devModal'));
+el('devAd').addEventListener('change', e => { DEV.ad = e.target.value; });
+el('devLen').addEventListener('change', e => { DEV.len = +e.target.value; });
+el('devSign').addEventListener('change', e => {
+  e.target.value === 'in' ? Play.signIn() : Play.signOut();
+});
+el('devFrame').addEventListener('change', e => {
+  DEV.frame = e.target.value === 'on';
+  document.body.classList.toggle('frame', DEV.frame);
+  setTimeout(resize, 60);
+});
+el('devReset').addEventListener('click', () => {
+  try { [HKEY, GKEY, AKEY, LKEY, SKEY].forEach(k => localStorage.removeItem(k)); } catch(e){}
+  goldStock = 0; achDone = {};
+  updateGoldUI(); updatePlayUI();
+  toast('저장 데이터를 초기화했습니다');
+});
+
+/* ---------- 안드로이드 뒤로가기 ---------- */
+const MODALS = ['adModal','devModal','lbModal','achModal','histModal','failModal','resultModal','buffModal'];
+function openModal(id){
+  el(id).classList.add('on');
+  try { history.pushState({ modal:id }, ''); } catch(e){}
 }
-function closeAd(){
-  clearInterval(adTimer); adTimer = null;
-  el('adModal').classList.remove('on');
-}
-function claimAd(){
-  if (el('adDone').disabled) return;
-  goldStock = Math.min(GOLD_CAP, goldStock + 1);
-  saveGold(); updateGoldUI(); closeAd();
-  sfxDone();
-  toast('⭐ 행운의 상자를 받았습니다! 지금 ' + goldStock + '개 · 다음 판 숲에 놓입니다');
-}
-el('adBtn1').addEventListener('click', () => { audio(); openAd(); });
-el('adBtn2').addEventListener('click', () => { audio(); openAd(); });
-el('adDone').addEventListener('click', claimAd);
-el('adCancel').addEventListener('click', () => { closeAd(); toast('광고를 끝까지 봐야 보상이 있습니다'); });
+function closeModal(id){ el(id).classList.remove('on'); }
+window.addEventListener('popstate', () => {
+  const top = MODALS.find(m => el(m).classList.contains('on'));
+  if (!top) return;
+  if (top === 'adModal') endAd('dismissed');
+  else closeModal(top);
+});
 
 /* 등급 범례 (버프 화면에 함께 노출) */
 function renderGradeLegend(){
@@ -1680,7 +2084,7 @@ function showBuff(k){
     buff.lines.map(l => '<div class="bl"><span class="k">' + l[0] + '</span><span class="v">' + l[1] + '</span></div>').join('');
   renderGradeLegend();
   el('luckModal').classList.remove('on');
-  el('buffModal').classList.add('on');
+  openModal('buffModal');
 }
 document.querySelectorAll('.luckbtn').forEach(b => {
   b.addEventListener('click', () => { audio(); tone(660,.14,'triangle',.1); showBuff(b.dataset.luck); });
@@ -1702,10 +2106,10 @@ el('takeBtn').addEventListener('click', takeChest);
 el('skipBtn').addEventListener('click', skipChest);
 el('homeBtn').addEventListener('click', recenter);
 el('mapBtn').addEventListener('click', toggleMap);
-el('histBtn').addEventListener('click', () => { renderHistory(); el('histModal').classList.add('on'); });
-el('luckHistBtn').addEventListener('click', () => { renderHistory(); el('histModal').classList.add('on'); });
-el('resHistBtn').addEventListener('click', () => { renderHistory(); el('histModal').classList.add('on'); });
-el('histClose').addEventListener('click', () => el('histModal').classList.remove('on'));
+el('histBtn').addEventListener('click', () => { renderHistory(); openModal('histModal'); });
+el('luckHistBtn').addEventListener('click', () => { renderHistory(); openModal('histModal'); });
+el('resHistBtn').addEventListener('click', () => { renderHistory(); openModal('histModal'); });
+el('histClose').addEventListener('click', () => closeModal('histModal'));
 el('histClear').addEventListener('click', () => {
   try { localStorage.removeItem(HKEY); } catch(e){}
   renderHistory();
@@ -1753,8 +2157,18 @@ if (!CanvasRenderingContext2D.prototype.roundRect){
     return this;
   };
 }
+/* 오프라인 셸 등록 — file:// 이나 샌드박스에서는 조용히 건너뛴다 */
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
 goldStock = loadGold();
 updateGoldUI();
+updatePlayUI();
+/* 앱 실행 느낌의 스플래시 — 목업에서는 1.3초 뒤 사라진다 */
+setTimeout(() => el('splash').classList.add('gone'), 1300);
 resize();
 makeGround();
 genMap();

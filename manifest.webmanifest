@@ -1,0 +1,20 @@
+{
+  "name": "숲속 오솔길 보물찾기",
+  "short_name": "보물찾기",
+  "description": "밤 숲의 오솔길을 따라 상자 여섯을 열어 로또 6/45 번호를 만드는 게임.",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#060d09",
+  "theme_color": "#0c1c13",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-192.png",     "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png",     "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

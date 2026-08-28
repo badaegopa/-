@@ -1,0 +1,3708 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0c1c13">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>숲속 오솔길 보물찾기 · 로또 번호 생성기</title>
+<style>
+  :root{
+    --gold:#e9c46a; --gold-2:#f6dda1;
+    --panel:rgba(9,22,15,.82); --line:rgba(233,196,106,.26);
+    --txt:#e9f2e7; --dim:#9cb3a4;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;height:100dvh;margin:0;overflow:hidden;background:#060d09;
+    overscroll-behavior:none;-webkit-text-size-adjust:100%;}
+  body{font-family:'Pretendard','Noto Sans KR','Apple SD Gothic Neo',system-ui,-apple-system,sans-serif;
+       color:var(--txt);user-select:none;}
+  #game{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;}
+
+  /* ============ HUD ============ */
+  #hud{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;
+       padding:calc(env(safe-area-inset-top,0px) + 9px) 11px calc(env(safe-area-inset-bottom,0px) + 11px);}
+  .top{display:flex;flex-direction:column;align-items:center;gap:7px;}
+
+  .steps{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:7px 15px 7px 12px;backdrop-filter:blur(9px);min-width:min(390px,94vw);}
+  .steps .ico{font-size:17px;}
+  .steps .lab{font-size:11px;color:var(--dim);font-weight:700;letter-spacing:.04em;}
+  .steps .num{font-size:19px;font-weight:900;color:var(--gold-2);font-variant-numeric:tabular-nums;
+    min-width:34px;text-align:right;}
+  .steps .unit{font-size:11px;color:var(--dim);margin-left:-3px;}
+  .sbar{flex:1;height:8px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden;}
+  .sbar i{display:block;height:100%;border-radius:99px;width:100%;
+    background:linear-gradient(90deg,#4bb98a,#e9c46a);transition:width .35s ease,background .35s;}
+  .steps.low .sbar i{background:linear-gradient(90deg,#e08b4b,#ff5d4b);}
+  .steps.low .num{color:#ff8f6d;}
+
+  .slots{display:flex;gap:6px;background:var(--panel);border:1px solid var(--line);
+    border-radius:15px;padding:7px 11px;backdrop-filter:blur(9px);}
+  .slot{width:37px;height:37px;border-radius:50%;display:grid;place-items:center;font-weight:900;
+    font-size:15px;border:2px dashed rgba(233,196,106,.32);color:rgba(233,196,106,.42);
+    background:rgba(0,0,0,.22);}
+  .slot.filled{border-style:solid;border-color:rgba(255,255,255,.25);color:#241d0c;
+    animation:pop .5s cubic-bezier(.2,1.7,.4,1);}
+  @keyframes pop{0%{transform:scale(.15) rotate(-30deg);opacity:0}68%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+  .buffchip{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:5px 13px;font-size:11.5px;font-weight:800;color:var(--gold-2);
+    backdrop-filter:blur(9px);}
+  .buffchip span{color:var(--dim);font-weight:600;}
+
+  .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+  .tapchip{pointer-events:auto;cursor:pointer;font-family:inherit;}
+  .tapchip:active{transform:scale(.96);}
+  .mini.recenter{display:none;}
+  #hud.free .mini.recenter{display:block;}
+  .spacer{flex:1;}
+  .bottom{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;}
+  .hint{font-size:11.5px;color:var(--dim);line-height:1.65;background:var(--panel);
+    border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:8px 11px;
+    backdrop-filter:blur(6px);max-width:56vw;transition:opacity .6s;}
+  .hint.fade{opacity:0;}
+  .hint b{color:var(--gold-2);}
+  .btns{display:flex;gap:7px;align-items:flex-end;}
+  button{font-family:inherit;cursor:pointer;touch-action:manipulation;}
+  .mini{pointer-events:auto;background:var(--panel);border:1px solid var(--line);color:var(--gold-2);
+    border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:800;backdrop-filter:blur(6px);
+    white-space:nowrap;}
+  .mini.on{background:rgba(233,196,106,.9);color:#22190a;border-color:transparent;}
+
+  /* ===== 담기/지나치기 선택 패널 ===== */
+  #choice{position:fixed;left:50%;bottom:118px;transform:translateX(-50%) translateY(16px);
+    z-index:45;display:none;grid-template-columns:auto 1fr auto;
+    grid-template-areas:"ball text btns";align-items:center;gap:14px;pointer-events:auto;
+    background:rgba(8,20,13,.94);border:1px solid var(--line);border-radius:20px;
+    padding:13px 16px;backdrop-filter:blur(10px);box-shadow:0 18px 50px rgba(0,0,0,.6);
+    width:max-content;max-width:min(520px,94vw);opacity:0;transition:opacity .2s,transform .2s;}
+  #choice.on{display:grid;opacity:1;transform:translateX(-50%) translateY(0);}
+  #chBall{grid-area:ball;} .ctxt{grid-area:text;} .cbtns{grid-area:btns;}
+  .chline{white-space:nowrap;}
+  #chBall{width:54px;height:54px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;
+    font-weight:900;font-size:22px;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.35);
+    animation:chpop .45s cubic-bezier(.2,1.7,.4,1);}
+  #chBall.d{color:#241d0c;}
+  @keyframes chpop{0%{transform:scale(.2) rotate(-25deg)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+  .ctxt{flex:1;min-width:0;text-align:left;}
+  .ct1{font-size:14px;font-weight:800;line-height:1.5;display:flex;align-items:center;
+    gap:7px;flex-wrap:wrap;}
+  .ct1 b{color:var(--gold-2);}
+  .gbadge{font-size:11px;font-weight:900;padding:2px 8px;border-radius:999px;
+    border:1px solid currentColor;letter-spacing:.02em;}
+  .ct2{font-size:11.5px;color:var(--gold-2);margin-top:4px;font-weight:700;}
+  .cmemo{font-size:11.5px;margin-top:4px;line-height:1.5;color:var(--dim);}
+  .cmemo.warn{color:#ffb08a;} .cmemo.good{color:#8fe0b0;}
+  .ct3{font-size:10.5px;color:#7a8f81;margin-top:4px;}
+  .cbtns{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;}
+  .cbtns button{border-radius:11px;padding:9px 13px;font-size:13px;font-weight:900;
+    border:1px solid transparent;white-space:nowrap;transition:transform .12s,filter .2s;}
+  .cbtns button:active{transform:scale(.96);}
+  #takeBtn{background:linear-gradient(135deg,var(--gold),#d4a949);color:#22160a;}
+  #skipBtn{background:transparent;border-color:var(--line);color:var(--gold-2);}
+  #skipBtn em{font-style:normal;color:var(--dim);font-weight:700;font-size:11px;}
+  #skipBtn:disabled{opacity:.35;cursor:not-allowed;}
+  @media (max-width:560px){
+    #choice{bottom:calc(env(safe-area-inset-bottom,0px) + 82px);
+      grid-template-columns:auto 1fr;grid-template-areas:"ball text" "btns btns";
+      align-items:start;gap:9px 11px;padding:11px 12px;width:calc(100vw - 20px);
+      max-width:none;border-radius:17px;}
+    #chBall{width:42px;height:42px;font-size:17px;align-self:center;}
+    .ct1{font-size:12.5px;gap:6px;} .ct2,.cmemo{font-size:10.8px;} .ct3{font-size:9.8px;}
+    .cmemo{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    .cbtns{flex-direction:row;width:100%;gap:8px;}
+    .cbtns button{flex:1;padding:12px 8px;font-size:13.5px;}
+  }
+
+  #toast{position:fixed;left:50%;bottom:35%;transform:translateX(-50%) translateY(10px);
+    background:rgba(7,17,11,.94);border:1px solid var(--line);border-radius:12px;padding:10px 18px;
+    font-size:13.5px;font-weight:800;opacity:0;transition:opacity .22s,transform .22s;
+    pointer-events:none;z-index:40;text-align:center;max-width:88vw;}
+  @media (max-width:560px){
+    #toast{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 118px);
+      font-size:11.5px;padding:8px 13px;max-width:78vw;border-radius:11px;}
+  }
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* ============ 모달 ============ */
+  .modal{position:fixed;inset:0;z-index:60;display:none;place-items:center;padding:16px;
+    background:rgba(3,9,6,.82);backdrop-filter:blur(7px);overflow-y:auto;}
+  .modal.on{display:grid;}
+  .card{width:min(540px,100%);background:linear-gradient(180deg,#102a1b,#08150f);
+    border:1px solid var(--line);border-radius:22px;padding:26px 22px;text-align:center;
+    box-shadow:0 30px 90px rgba(0,0,0,.65);animation:rise .42s cubic-bezier(.2,.9,.3,1);}
+  @keyframes rise{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:none}}
+  .card h1{margin:0 0 6px;font-size:24px;letter-spacing:-.02em;color:var(--gold-2);line-height:1.35;}
+  .card h2{margin:0 0 12px;font-size:21px;color:var(--gold-2);}
+  .sub{color:var(--dim);font-size:13px;line-height:1.75;margin:0 0 18px;}
+
+  /* 운 선택 */
+  .luck{display:grid;gap:10px;}
+  .luckbtn{display:flex;align-items:center;gap:13px;text-align:left;padding:15px 16px;border-radius:16px;
+    border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);color:var(--txt);
+    transition:transform .14s,border-color .2s,background .2s;}
+  .luckbtn:hover{border-color:var(--gold);background:rgba(233,196,106,.09);}
+  .luckbtn:active{transform:scale(.98);}
+  .luckbtn .em{font-size:29px;line-height:1;}
+  .luckbtn .t1{display:block;font-size:16px;font-weight:900;color:var(--gold-2);}
+  .luckbtn .t2{display:block;font-size:12px;color:var(--dim);margin-top:3px;line-height:1.55;}
+  .luckbtn .col{flex:1;min-width:0;}
+
+  /* 버프 설명 */
+  .buffbox{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:18px;
+    padding:18px 17px;text-align:left;margin-bottom:16px;}
+  .buffhead{display:flex;align-items:center;gap:11px;margin-bottom:13px;}
+  .buffhead .em{font-size:33px;}
+  .buffhead .nm{font-size:18px;font-weight:900;color:var(--gold-2);}
+  .buffhead .sm{font-size:11.5px;color:var(--dim);margin-top:2px;}
+  .bl{display:flex;gap:9px;font-size:13px;line-height:1.6;padding:7px 0;
+    border-top:1px solid rgba(255,255,255,.06);}
+  .bl:first-of-type{border-top:none;}
+  .bl .k{color:var(--gold);font-weight:900;flex:0 0 auto;}
+  .bl .v{color:#d5e5d8;}
+  .bl .v b{color:var(--gold-2);}
+
+  .cta{width:100%;padding:15px;border-radius:14px;border:none;font-size:16px;font-weight:900;
+    background:linear-gradient(135deg,var(--gold),#d4a949);color:#22160a;
+    box-shadow:0 8px 24px rgba(233,196,106,.22);}
+  .cta:active{transform:translateY(1px);}
+  .cta:disabled{opacity:.4;box-shadow:none;}
+  .ghost{width:100%;padding:12px;border-radius:12px;margin-top:9px;font-size:13.5px;font-weight:800;
+    background:transparent;border:1px solid var(--line);color:var(--gold-2);}
+  .row2{display:flex;gap:9px;margin-top:9px;}
+  .row2 .ghost{margin-top:0;}
+
+  /* 결과 티켓 */
+  .ticket{background:#fbf7ec;border-radius:16px;padding:18px 12px 15px;margin-bottom:15px;}
+  .tlabel{font-size:10.5px;color:#8a7f66;letter-spacing:.2em;font-weight:900;margin-bottom:13px;}
+  .balls{display:flex;gap:7px;justify-content:center;align-items:center;flex-wrap:wrap;}
+  .ball{width:43px;height:43px;border-radius:50%;display:grid;place-items:center;font-weight:900;
+    font-size:17px;color:#fff;box-shadow:0 3px 7px rgba(0,0,0,.22);}
+  .ball.d{color:#332a0e;}
+  .meta{margin-top:12px;font-size:11.5px;color:#8a7f66;line-height:1.6;}
+
+  /* 행운의 상자 보유 표시 + 광고 */
+  .goldrow{display:flex;align-items:center;gap:11px;background:rgba(233,196,106,.08);
+    border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:14px;text-align:left;}
+  .goldrow .gem{font-size:26px;line-height:1;}
+  .goldrow .gt,.playrow .gt{flex:1;min-width:0;display:block;}
+  .goldrow .g1,.playrow .g1{display:block;font-size:14px;font-weight:900;color:var(--gold-2);}
+  .goldrow .g2,.playrow .g2{display:block;font-size:11.5px;color:var(--dim);
+    margin-top:3px;line-height:1.55;}
+  .playrow .g1{font-size:13px;}
+  .adbtn{background:linear-gradient(135deg,#3d8f6a,#2b6b4d);border:none;color:#eafff4;
+    border-radius:12px;padding:11px 14px;font-size:13px;font-weight:900;white-space:nowrap;}
+  .adbtn:disabled{opacity:.45;}
+  .adbox{background:#0a1a12;border:1px dashed rgba(233,196,106,.4);border-radius:16px;
+    padding:20px 16px;margin-bottom:15px;}
+  .adtag{font-size:10px;letter-spacing:.22em;font-weight:900;color:#7b8f83;margin-bottom:12px;}
+  .adart{font-size:52px;line-height:1;margin-bottom:10px;}
+  .adcopy{font-size:12.5px;color:var(--dim);line-height:1.6;margin-bottom:14px;}
+  .adbar{height:7px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden;}
+  .adbar i{display:block;height:100%;width:0%;border-radius:99px;
+    background:linear-gradient(90deg,#4bb98a,var(--gold));transition:width .25s linear;}
+  .ticket{cursor:pointer;}
+  /* 상자 정리 */
+  .trimgrid{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:2px 0 14px;}
+  .trimb{position:relative;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
+         font-weight:900;font-size:19px;color:#fff;cursor:pointer;border:3px solid rgba(255,255,255,.18);
+         transition:transform .12s,opacity .12s,border-color .12s;-webkit-tap-highlight-color:transparent;}
+  .trimb:active{transform:scale(.93);}
+  .trimb.d{color:#332a0e;}
+  .trimb.off{opacity:.5;border-color:#c9564b;filter:grayscale(.55);}
+  .trimb.off::after{content:'✕';position:absolute;right:-5px;top:-6px;width:19px;height:19px;
+         border-radius:50%;background:#c9564b;color:#fff;font-size:12px;font-weight:900;
+         display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.55);}
+  .trimtip{font-size:12.5px;color:#8fa397;margin:-6px 0 12px;line-height:1.55;}
+  .tcopy{font-size:10.5px;color:#a99b7d;margin-top:9px;}
+
+  /* ================= 주사위 상자 ================= */
+  #diceLayer{position:fixed;inset:0;z-index:50;display:none;place-items:center;
+    background:rgba(4,12,8,.72);backdrop-filter:blur(4px);}
+  #diceLayer.on{display:grid;}
+  .dice-in{display:flex;flex-direction:column;align-items:center;gap:16px;
+    animation:dicePop .4s cubic-bezier(.2,1.5,.4,1);}
+  @keyframes dicePop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+  .dice-cap{font-size:13px;font-weight:900;color:#cdb4ff;letter-spacing:.04em;}
+  .die{width:112px;height:112px;border-radius:22px;background:linear-gradient(150deg,#fdfbf4,#ded8c6);
+    box-shadow:0 16px 44px rgba(0,0,0,.6),inset 0 -5px 0 rgba(0,0,0,.12);
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    padding:16px;gap:6px;}
+  .die i{border-radius:50%;background:#2a2c3a;opacity:0;transform:scale(.5);
+    transition:opacity .12s,transform .12s;}
+  .die i.on{opacity:1;transform:scale(1);}
+  .die.rolling{animation:dieShake .16s infinite;}
+  @keyframes dieShake{0%{transform:rotate(-5deg) translateY(0)}
+    50%{transform:rotate(5deg) translateY(-6px)}100%{transform:rotate(-5deg) translateY(0)}}
+  .die.settled{animation:dieLand .45s cubic-bezier(.2,1.6,.4,1);}
+  @keyframes dieLand{0%{transform:scale(1.25)}100%{transform:scale(1)}}
+  .dice-msg{font-size:15px;font-weight:900;color:var(--gold-2);text-align:center;
+    line-height:1.5;max-width:80vw;}
+  .dice-msg b{color:#cdb4ff;}
+  @media (max-width:560px){
+    .die{width:92px;height:92px;border-radius:19px;padding:13px;gap:5px;}
+    .dice-msg{font-size:13.5px;}
+  }
+
+  /* ================= Play 목업 셸 ================= */
+  #splash{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:6px;
+    background:radial-gradient(120% 90% at 50% 30%,#16341f 0%,#081310 70%);
+    transition:opacity .5s ease,visibility .5s;}
+  #splash.gone{opacity:0;visibility:hidden;}
+  .sp-icon{width:104px;height:104px;border-radius:26px;display:grid;place-items:center;font-size:54px;
+    background:linear-gradient(150deg,#2f7d4f,#14402a);
+    box-shadow:0 18px 44px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.16);margin-bottom:16px;}
+  .sp-name{font-size:20px;font-weight:900;color:var(--gold-2);letter-spacing:-.01em;}
+  .sp-sub{font-size:11px;letter-spacing:.26em;color:#6f8478;font-weight:700;text-transform:uppercase;}
+  .sp-dots{display:flex;gap:6px;margin-top:26px;}
+  .sp-dots i{width:6px;height:6px;border-radius:50%;background:var(--gold);opacity:.3;
+    animation:spd 1.1s infinite;}
+  .sp-dots i:nth-child(2){animation-delay:.16s} .sp-dots i:nth-child(3){animation-delay:.32s}
+  @keyframes spd{0%,100%{opacity:.25;transform:translateY(0)}45%{opacity:1;transform:translateY(-4px)}}
+  .sp-foot{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);
+    font-size:10.5px;color:#5d7268;letter-spacing:.05em;}
+
+  /* 상태바 프레임 (목업 설정에서 켜기) */
+  #statusbar{position:fixed;top:0;left:0;right:0;height:28px;z-index:88;display:none;
+    align-items:center;justify-content:space-between;padding:0 16px;font-size:11px;font-weight:700;
+    color:#cfe0d3;background:rgba(0,0,0,.55);pointer-events:none;letter-spacing:.02em;}
+  body.frame #statusbar{display:flex;}
+  body.frame #hud{padding-top:34px;}
+  body.frame::before{content:'';position:fixed;top:0;left:50%;transform:translateX(-50%);
+    width:120px;height:26px;background:#000;border-radius:0 0 15px 15px;z-index:89;pointer-events:none;}
+
+  /* Play 게임즈 로그인 줄 */
+  .playrow{display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:11px 13px;
+    margin-bottom:10px;text-align:left;}
+  .pavatar{width:38px;height:38px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;
+    font-size:16px;font-weight:900;color:#0d2116;background:linear-gradient(140deg,#8ab4f8,#4285f4);}
+  .playrow.out .pavatar{background:rgba(255,255,255,.10);color:#8ba193;}
+  .playbtn{background:#fff;color:#1f1f1f;border:none;border-radius:11px;padding:9px 15px;
+    font-size:12.5px;font-weight:900;white-space:nowrap;}
+  .playrow.in .playbtn{background:transparent;border:1px solid var(--line);color:var(--gold-2);}
+
+  /* 업적 배너 */
+  #achToast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);
+    transform:translate(-50%,-140%);z-index:95;display:flex;align-items:center;gap:11px;
+    background:rgba(12,26,18,.97);border:1px solid var(--line);border-radius:15px;
+    padding:11px 17px 11px 13px;box-shadow:0 14px 40px rgba(0,0,0,.55);
+    transition:transform .45s cubic-bezier(.2,1.2,.3,1);pointer-events:none;max-width:92vw;}
+  #achToast.on{transform:translate(-50%,0);}
+  .ac-ico{font-size:26px;}
+  .ac-txt{display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;}
+  .ac-txt b{font-size:13.5px;color:var(--gold-2);}
+  .ac-txt span{font-size:11px;color:var(--dim);}
+
+  /* 리워드 광고 전체화면 */
+  .modal.adfull{padding:0;background:#05100b;}
+  .modal.adfull.on{display:grid;place-items:stretch;}
+  .adscreen{display:flex;flex-direction:column;height:100%;width:100%;
+    padding:calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);}
+  .adtop{display:flex;align-items:center;gap:10px;}
+  .adbadge{font-size:10px;font-weight:900;letter-spacing:.08em;color:#0d2116;background:#e9c46a;
+    border-radius:5px;padding:3px 7px;}
+  .adtimer{margin-left:auto;font-size:12px;font-weight:900;color:#cfe0d3;
+    background:rgba(255,255,255,.10);border-radius:999px;width:28px;height:28px;
+    display:grid;place-items:center;font-variant-numeric:tabular-nums;}
+  .adx{width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.12);
+    color:#e9f2e7;font-size:14px;font-weight:900;display:grid;place-items:center;}
+  .adstage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:12px;text-align:center;border:1px dashed rgba(233,196,106,.30);border-radius:18px;
+    margin:14px 0;padding:24px 18px;background:#0a1a12;}
+  .adart{font-size:60px;line-height:1;}
+  .adtitle{font-size:15px;font-weight:900;color:var(--gold-2);}
+  .adcopy{font-size:12.5px;color:var(--dim);line-height:1.65;}
+  .adreward{margin-top:6px;font-size:12px;color:#bfe6c6;background:rgba(75,185,138,.12);
+    border:1px solid rgba(75,185,138,.3);border-radius:999px;padding:7px 14px;}
+  .adbottom{display:flex;flex-direction:column;gap:10px;}
+  .adnote{font-size:10.5px;color:#6e8478;text-align:center;}
+  .adbar{height:6px;border-radius:99px;background:rgba(255,255,255,.10);overflow:hidden;}
+  .adbar i{display:block;height:100%;width:0%;border-radius:99px;
+    background:linear-gradient(90deg,#4bb98a,var(--gold));transition:width .25s linear;}
+
+  /* 업적 목록 */
+  .achit{display:flex;gap:11px;align-items:center;background:rgba(0,0,0,.26);
+    border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:11px 12px;margin-bottom:8px;}
+  .achit .ai{font-size:24px;width:34px;text-align:center;filter:grayscale(1);opacity:.4;}
+  .achit.got .ai{filter:none;opacity:1;}
+  .achit .at{flex:1;min-width:0;}
+  .achit .a1{font-size:13px;font-weight:900;color:#8ba193;}
+  .achit.got .a1{color:var(--gold-2);}
+  .achit .a2{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.5;}
+  .achit .ac{font-size:11px;font-weight:900;color:#4bb98a;}
+
+  /* 하단 배너 광고 — 판이 진행되는 동안 계속 붙어 있는다 */
+  #banner{position:fixed;left:0;right:0;bottom:0;z-index:44;display:none;
+    align-items:center;gap:10px;height:calc(50px + env(safe-area-inset-bottom,0px));
+    padding:0 12px env(safe-area-inset-bottom,0px);
+    background:rgba(6,14,10,.94);border-top:1px solid rgba(233,196,106,.22);
+    backdrop-filter:blur(8px);}
+  body.playing #banner{display:flex;}
+  .ad-tag{flex:0 0 auto;font-size:9.5px;font-weight:900;letter-spacing:.06em;
+    color:#0d2116;background:#e9c46a;border-radius:4px;padding:2px 6px;}
+  .ad-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;text-align:left;}
+  .ad-body b{font-size:12px;font-weight:800;color:var(--gold-2);}
+  .ad-body span{font-size:10px;color:#7b8f83;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* 배너에 가리지 않도록 아래쪽을 비운다 */
+  body.playing #hud{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 62px);}
+  body.playing #toast{bottom:calc(env(safe-area-inset-bottom,0px) + 62px);}
+  @media (max-width:560px){
+    body.playing #toast{bottom:auto;}
+  }
+
+  /* 행운의 토템 */
+  .totemrow{display:flex;align-items:center;gap:13px;background:rgba(120,90,180,.10);
+    border:1px solid rgba(205,180,255,.24);border-radius:16px;padding:11px 13px;
+    margin-bottom:10px;text-align:left;}
+  .tot-art{flex:0 0 auto;line-height:0;}
+  .tot-art svg{display:block;}
+  .totemrow .g1{display:block;font-size:13px;font-weight:900;color:#cdb4ff;}
+  .totemrow .g2{display:block;font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.55;}
+  .totemrow .gt{flex:1;min-width:0;display:block;}
+  .tot-big{display:flex;justify-content:center;margin-bottom:16px;
+    filter:drop-shadow(0 8px 26px rgba(205,180,255,.35));animation:totemUp .6s cubic-bezier(.2,1.3,.3,1);}
+  @keyframes totemUp{from{opacity:0;transform:translateY(18px) scale(.9)}to{opacity:1;transform:none}}
+  .goldenbtn{background:linear-gradient(135deg,#f7d774,#c08f26);margin-bottom:13px;}
+  #totemModal{z-index:72;}          /* 결과창·개발버튼보다 위 */
+
+  /* 별 배치 선택 */
+  .starpick{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;}
+  .starpick button{width:46px;height:52px;border-radius:13px;font-size:17px;font-weight:900;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);color:var(--dim);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+  .starpick button em{font-style:normal;font-size:9px;font-weight:700;opacity:.7;}
+  .starpick button.on{background:rgba(233,196,106,.16);border-color:var(--gold);color:var(--gold-2);}
+  .starpick button:disabled{opacity:.28;}
+  .starinfo{background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.07);border-radius:13px;
+    padding:12px 13px;margin-bottom:15px;font-size:12.5px;color:var(--dim);line-height:1.75;}
+  .starinfo b{color:var(--gold-2);}
+
+  /* 당첨 회차 · 명예의 전당 */
+  .drawbox{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:16px;
+    padding:13px 12px;margin-bottom:12px;}
+  .drawbox .dh{font-size:11.5px;color:var(--dim);margin-bottom:10px;font-weight:700;}
+  .drawbox .dh b{color:var(--gold-2);font-size:13px;}
+  .drawbox .balls{gap:5px;flex-wrap:nowrap;}
+  .drawbox .balls .ball{width:min(34px,10vw);height:min(34px,10vw);font-size:clamp(11px,3.4vw,14px);}
+  .drawbox .plus{font-size:14px;margin:0;}
+  .drawbox .pend{font-size:12.5px;color:var(--dim);line-height:1.7;padding:6px 0;}
+  .tabs{display:flex;gap:7px;margin-bottom:11px;}
+  .tab{flex:1;padding:9px;border-radius:11px;font-size:12.5px;font-weight:800;
+    background:transparent;border:1px solid var(--line);color:var(--dim);}
+  .tab.on{background:rgba(233,196,106,.14);color:var(--gold-2);border-color:var(--gold);}
+  .wit{display:flex;gap:10px;align-items:center;background:rgba(0,0,0,.26);
+    border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:10px 12px;margin-bottom:7px;}
+  .wit.me{border-color:var(--gold);background:rgba(233,196,106,.10);}
+  .wit .rk{width:24px;font-size:13px;font-weight:900;color:var(--dim);text-align:center;}
+  .wit.me .rk{color:var(--gold-2);}
+  .wit .wl{flex:1;min-width:0;}
+  .wit .w1{font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .wit .w2{font-size:10.5px;color:var(--dim);margin-top:2px;}
+  .wit .amt{font-size:13px;font-weight:900;color:var(--gold-2);text-align:right;
+    font-variant-numeric:tabular-nums;white-space:nowrap;display:flex;
+    flex-direction:column;align-items:flex-end;gap:2px;}
+  .wit .amtsub{font-size:9.5px;font-weight:600;color:#7a8f81;}
+  .wit .tag{font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;margin-left:5px;
+    background:rgba(255,255,255,.10);color:#8ba193;vertical-align:middle;}
+  .rkbadge{display:inline-block;font-size:10px;font-weight:900;padding:2px 6px;border-radius:5px;
+    margin-right:5px;color:#1d1608;}
+  .r1{background:#f6dda1} .r2{background:#c8b4ff} .r3{background:#8fd3f4}
+  .r4{background:#9fd8a8} .r5{background:#c9c9c9}
+  .mysum{background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.07);border-radius:13px;
+    padding:11px 12px;margin-bottom:12px;font-size:12px;color:var(--dim);line-height:1.7;text-align:left;}
+  .mysum b{color:var(--gold-2);}
+  .hstat{margin-bottom:8px;}
+  .tstat{font-size:11px;font-weight:900;padding:3px 8px;border-radius:6px;
+    display:inline-block;white-space:nowrap;}
+  .tstat.wait{background:rgba(255,255,255,.09);color:#9cb3a4;}
+  .tstat.lose{background:rgba(255,255,255,.06);color:#6f8478;}
+  .tstat.win{background:rgba(233,196,106,.18);color:var(--gold-2);}
+
+  /* 순위표 */
+  .lbit{display:flex;gap:11px;align-items:center;background:rgba(0,0,0,.26);
+    border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:10px 12px;margin-bottom:7px;}
+  .lbit.me{border-color:var(--gold);background:rgba(233,196,106,.10);}
+  .lbit .rk{width:26px;font-size:13px;font-weight:900;color:var(--dim);text-align:center;}
+  .lbit.me .rk{color:var(--gold-2);}
+  .lbit .nm{flex:1;min-width:0;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;}
+  .lbit .sc{font-size:13px;font-weight:900;color:var(--gold-2);font-variant-numeric:tabular-nums;}
+
+  /* 목업 개발자 패널 */
+  #devBtn,#exitBtn{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:70;
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+    background:rgba(9,22,15,.85);color:var(--gold-2);font-size:15px;backdrop-filter:blur(6px);}
+  #devBtn{right:8px;}
+  #exitBtn{left:8px;color:#ffb6a8;border-color:rgba(255,140,120,.35);}
+  body.frame #exitBtn{top:calc(env(safe-area-inset-top,0px) + 34px);}
+  body.adplaying #exitBtn,body.dicing #exitBtn{display:none;}
+  body.adplaying #devBtn,
+  body.dicing #devBtn{display:none;}      /* 광고·주사위 연출을 가리지 않게 */
+  body.frame #devBtn{top:calc(env(safe-area-inset-top,0px) + 34px);}
+  .devbox{display:flex;flex-direction:column;gap:9px;margin-bottom:15px;}
+  label.dev{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.26);
+    border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:9px 12px;text-align:left;}
+  label.dev span{flex:1;font-size:12.5px;font-weight:700;color:#cfe0d3;}
+  label.dev select{background:#0d1f16;color:var(--gold-2);border:1px solid var(--line);
+    border-radius:9px;padding:7px 9px;font-size:12px;font-family:inherit;font-weight:700;}
+
+  .hist{max-height:50vh;overflow-y:auto;text-align:left;margin-bottom:13px;}
+  .hitem{background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.07);border-radius:13px;
+    padding:11px 12px;margin-bottom:8px;}
+  .hdate{font-size:11px;color:var(--dim);margin-bottom:8px;}
+  .hitem .ball{width:31px;height:31px;font-size:13px;}
+  .empty{color:var(--dim);font-size:13px;padding:28px 0;text-align:center;}
+  .disc{font-size:11px;color:#6e8478;line-height:1.7;margin-top:14px;}
+  /* ===== 모바일: HUD를 최대한 눕히고 지도 면적을 확보 ===== */
+  @media (max-width:560px){
+    #hud{padding:calc(env(safe-area-inset-top,0px) + 6px) 8px calc(env(safe-area-inset-bottom,0px) + 8px);}
+    .top{gap:5px;}
+    .mini .lbl{display:none;}
+    .mini{padding:11px 12px;font-size:14px;border-radius:13px;}
+    .steps{min-width:0;width:100%;padding:5px 12px 5px 9px;gap:8px;}
+    .steps .lab{display:none;}
+    .steps .num{font-size:17px;min-width:28px;}
+    .steps .ico{font-size:15px;}
+    .slots{padding:5px 8px;gap:5px;border-radius:13px;}
+    .slot{width:31px;height:31px;font-size:13px;border-width:2px;}
+    .buffchip{padding:4px 10px;font-size:10.5px;}
+    .buffchip span{display:none;}
+    #goldChip span,#stepChip span,#totemChip span{display:inline;}
+    .hint{max-width:46vw;font-size:10.5px;padding:7px 9px;line-height:1.5;}
+    .card{padding:22px 17px;border-radius:19px;}
+    .card h1{font-size:21px;}
+    .card h2{font-size:19px;}
+    .sub{font-size:12.5px;}
+  }
+  /* ===== 가로 화면(낮은 높이): 상단 HUD를 한 줄로 ===== */
+  @media (max-height:520px){
+    .top{flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;}
+    .steps{width:auto;min-width:190px;flex:0 1 auto;}
+    .chips{flex:0 0 auto;}
+    .hint{display:none;}
+    #choice{bottom:76px;}
+    #toast{bottom:auto;top:12px;transform:translateX(-50%);}
+    #toast.on{transform:translateX(-50%);}
+    .modal{align-items:start;}
+    .card{padding:18px 16px;}
+    .card h1{font-size:19px;line-height:1.35;} .card h2{font-size:17px;}
+    .luckbtn{padding:11px 13px;} .luckbtn .em{font-size:24px;}
+    .cta{padding:12px;font-size:14px;} .ghost{padding:10px;font-size:13px;}
+  }
+  @media (max-height:760px){
+    .modal{align-items:start;}
+  }
+</style>
+</head>
+<body>
+<div id="splash">
+  <div class="sp-icon">🌲</div>
+  <div class="sp-name">숲속 오솔길 보물찾기</div>
+  <div class="sp-sub">Forest Trail Lotto</div>
+  <div class="sp-dots"><i></i><i></i><i></i></div>
+  <div class="sp-foot">목업 빌드 · Google Play 연동 전</div>
+</div>
+
+<div id="achToast"><span class="ac-ico">🏅</span>
+  <span class="ac-txt"><b id="acName">업적</b><span id="acDesc">달성</span></span></div>
+
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="top">
+    <div class="steps" id="stepsBox">
+      <span class="ico">👣</span>
+      <span class="lab">걸음</span>
+      <span class="num" id="stepNum">0</span><span class="unit">보</span>
+      <div class="sbar"><i id="stepFill"></i></div>
+    </div>
+    <div class="slots" id="slots"></div>
+    <div class="chips">
+      <div class="buffchip" id="buffChip">🍀 버프 <span>—</span></div>
+      <div class="buffchip" id="goldChip" style="display:none">⭐ 별 <span>0</span></div>
+      <button class="buffchip tapchip" id="stepChip" style="display:none">👣 보유 걸음 <span>0</span></button>
+      <div class="buffchip" id="totemChip" style="display:none">🗿 토템 <span>0/12</span></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="bottom">
+    <div class="hint" id="hint">멀리 있는 상자도 <b>탭</b>하면 최단거리로 간다<br>숫자는 <b>여섯을 채운 뒤</b> 드러난다</div>
+    <div class="btns">
+      <button class="mini recenter" id="homeBtn" title="내 위치로">🎯<span class="lbl"> 내 위치</span></button>
+      <button class="mini" id="mapBtn">🗺<span class="lbl"> 전체지도</span></button>
+      <button class="mini" id="histBtn">📜</button>
+      <button class="mini" id="soundBtn">🔊</button>
+    </div>
+  </div>
+</div>
+
+<div id="diceLayer">
+  <div class="dice-in">
+    <div class="dice-cap">🎲 행운의 주사위 상자</div>
+    <div class="die" id="die"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="dice-msg" id="diceMsg">굴리는 중…</div>
+  </div>
+</div>
+
+<div id="banner" role="complementary" aria-label="광고">
+  <span class="ad-tag">AD</span>
+  <span class="ad-body">
+    <b>광고 배너 자리</b>
+    <span>AdMob 320×50 · 실제 배너로 교체됩니다</span>
+  </span>
+</div>
+
+<div id="toast"></div>
+
+<!-- 1. 운 질문 -->
+<div class="modal on" id="luckModal">
+  <div class="card">
+    <h1>오늘 당신의 운은<br>좋습니까?</h1>
+    <p class="sub">숲은 당신의 대답에 맞춰 채비를 내어줍니다.<br>대답에 따라 <b style="color:#f6dda1">서로 다른 버프</b>를 받습니다.<br>
+    상자를 열면 <b style="color:#f6dda1">담을지 지나칠지</b> 고를 수 있습니다 (지나치기 1보).</p>
+    <div class="playrow" id="playRow">
+      <span class="pavatar" id="pAvatar">?</span>
+      <span class="gt">
+        <span class="g1" id="pName">Play 게임즈에 로그인하지 않음</span>
+        <span class="g2" id="pDesc">로그인하면 업적과 순위표가 계정에 저장됩니다.</span>
+      </span>
+      <button class="playbtn" id="signBtn">로그인</button>
+    </div>
+    <div class="totemrow" id="totemRow">
+      <div class="tot-art" id="totemArt"></div>
+      <div class="gt">
+        <span class="g1" id="totemTitle">행운의 토템 0 / 12</span>
+        <span class="g2" id="totemNote">상자를 열 때 조각이 무작위로 떨어집니다.</span>
+      </div>
+    </div>
+    <div class="goldrow">
+      <span class="gem">⭐</span>
+      <span class="gt">
+        <span class="g1" id="goldCount">행운의 상자 0개</span>
+        <span class="g2" id="goldNote">광고를 보면 1개씩 쌓입니다. 모은 만큼 숲에 <b>황금 상자</b>로 놓입니다.</span>
+      </span>
+      <button class="adbtn" id="adBtn1">📺 광고 보기</button>
+    </div>
+    <div class="luck">
+      <button class="luckbtn" data-luck="good">
+        <span class="em">🍀</span>
+        <span class="col"><span class="t1">좋음</span>
+        <span class="t2">운을 믿는다 · 채비는 적지만 행운이 크게 갚아준다</span></span>
+      </button>
+      <button class="luckbtn" data-luck="normal">
+        <span class="em">🧭</span>
+        <span class="col"><span class="t1">보통</span>
+        <span class="t2">무난하다 · 균형 잡힌 채비와 앞을 읽는 눈</span></span>
+      </button>
+      <button class="luckbtn" data-luck="bad">
+        <span class="em">🕯</span>
+        <span class="col"><span class="t1">나쁨</span>
+        <span class="t2">액땜한다 · 넉넉한 채비와 흔들림 없는 길</span></span>
+      </button>
+    </div>
+    <div class="row2">
+      <button class="ghost" id="achBtn">🏅 업적</button>
+      <button class="ghost" id="lbBtn">🏆 순위표</button>
+    </div>
+    <button class="ghost" id="luckHistBtn">📜 지난 기록 보기</button>
+    <button class="ghost" id="luckExitBtn">⏻ 게임 종료</button>
+    <p class="disc">오락용 무작위 번호 생성기입니다. 당첨을 보장하지 않으며 번호는 브라우저 암호학적 난수(crypto)로 섞습니다.</p>
+  </div>
+</div>
+
+<!-- 2. 버프 설명 -->
+<div class="modal" id="buffModal">
+  <div class="card">
+    <h2>숲의 가호</h2>
+    <p class="sub">당신의 대답에 따라 다음 버프를 받았습니다.</p>
+    <div class="buffbox" id="buffBox"></div>
+    <div class="buffbox" id="gradeBox"></div>
+    <button class="cta" id="enterBtn">🌲 숲으로 들어가기</button>
+    <button class="ghost" id="reLuckBtn">← 다시 대답하기</button>
+  </div>
+</div>
+
+<!-- 2-1. 별 → 황금 상자 배치 -->
+<div class="modal" id="starModal">
+  <div class="card">
+    <h2>⭐ 별을 황금 상자로</h2>
+    <p class="sub">모아둔 별을 이번 판 숲에 <b style="color:#f6dda1">황금 상자</b>로 놓을 수 있습니다.<br>
+    <b style="color:#f6dda1">고른 수만큼 별이 소모</b>됩니다 — 찾지 못해도 돌아오지 않습니다.<br>
+    아껴두려면 <b style="color:#f6dda1">0개</b>를 고르세요.</p>
+    <button class="cta goldenbtn" id="goldenBtn" style="display:none">🗿 전체 황금상자 모드로 들어가기</button>
+    <div class="starpick" id="starPick"></div>
+    <div class="starinfo" id="starInfo"></div>
+    <button class="cta" id="starGo">🌲 이 구성으로 숲에 들어가기</button>
+    <button class="ghost" id="starBack">← 버프 다시 보기</button>
+  </div>
+</div>
+
+<!-- 종료 -->
+<div class="modal" id="exitModal">
+  <div class="card">
+    <h2>⏻ 게임을 마칠까요?</h2>
+    <p class="sub" id="exitSub"></p>
+    <button class="cta" id="exitStay">← 계속하기</button>
+    <div class="row2">
+      <button class="ghost" id="exitHome">🏠 시작 화면으로</button>
+      <button class="ghost" id="exitApp">⏻ 앱 종료</button>
+    </div>
+    <p class="disc">별·보유 걸음·토템 조각·티켓은 이 기기에 저장되어 있어
+    다시 켜도 그대로입니다.</p>
+  </div>
+</div>
+
+<!-- 토템 완성 -->
+<div class="modal" id="totemModal">
+  <div class="card">
+    <h2>🗿 행운의 토템 완성!</h2>
+    <p class="sub">열두 조각이 모두 모였습니다.<br>
+    토템은 <b style="color:#f6dda1">전체 황금상자 모드 1회권</b>이 되어 사라집니다.</p>
+    <div class="tot-big" id="totemBig"></div>
+    <div class="starinfo">
+      <b>전체 황금상자 모드</b> — 숲의 <b>45개 상자가 모두 황금 상자</b>가 됩니다.<br>
+      담으면 걸음 +4. <b>단 한 판</b>만 쓸 수 있습니다.<br>
+      <span style="color:#6f8478">숲에 들어가기 전 화면에서 사용 여부를 고르세요.</span>
+    </div>
+    <button class="cta" id="totemClose">좋다</button>
+  </div>
+</div>
+
+<!-- 2-1. 상자 정리 (여섯을 채운 뒤) -->
+<div class="modal" id="trimModal">
+  <div class="card">
+    <h2>🧺 상자를 정리한다</h2>
+    <p class="sub">마음에 걸리는 상자는 <b style="color:#f6dda1">버리고</b> 다시 찾을 수 있습니다.<br>
+    버리는 데 <b>걸음은 들지 않고</b>, 개수 제한도 없습니다.</p>
+
+    <div class="trimtip">지도에는 아직 <b>숫자가 공개되지 않았습니다</b> —
+    🗿 토템 · ✦ 천사 · ⭐ 행운의 상자 자리만 드러나 있습니다</div>
+    <div class="trimgrid" id="trimGrid"></div>
+    <div class="trimtip">상자를 눌러 <b style="color:#ff7264">✕</b> 표시하면 버립니다 · 다시 누르면 되돌립니다</div>
+    <div class="starinfo" id="trimInfo"></div>
+    <button class="cta" id="trimKeepBtn">✅ 이대로 확정 · 숫자 공개</button>
+    <button class="ghost" id="trimDropBtn">🗑️ 선택한 상자 버리고 다시 찾기</button>
+  </div>
+</div>
+
+<!-- 3. 결과 -->
+<div class="modal" id="resultModal">
+  <div class="card">
+    <h2 id="resultTitle">🏆 번호 생성 완료!</h2>
+    <p class="sub" id="resultSub"></p>
+    <div class="ticket">
+      <div class="tlabel">FOREST LOTTO 6 / 45</div>
+      <div class="balls" id="resultBalls"></div>
+      <div class="meta" id="resultMeta"></div>
+      <div class="tcopy">티켓을 탭하면 번호가 복사됩니다</div>
+    </div>
+    <button class="cta" id="againBtn">🔁 같은 버프로 다시 도전</button>
+    <div class="row2">
+      <button class="ghost" id="reAskBtn">🎲 운 다시 묻기</button>
+      <button class="ghost" id="adBtn2">📺 광고 보고 ⭐ 받기</button>
+    </div>
+    <div class="row2">
+      <button class="ghost" id="resAchBtn">🏅 업적</button>
+      <button class="ghost" id="resLbBtn">🏆 순위표</button>
+    </div>
+    <button class="ghost" id="resHistBtn">📜 기록 보기</button>
+  </div>
+</div>
+
+<!-- 4. 실패(걸음 소진) -->
+<div class="modal" id="failModal">
+  <div class="card">
+    <h2>🌒 해가 저물었다</h2>
+    <p class="sub" id="failSub"></p>
+    <button class="cta" id="adStepBtn">📺 광고 보기 (⭐+1 · 👣+2)</button>
+    <button class="ghost" id="bankBtn" style="display:none">👣 보유 걸음 쓰기</button>
+    <button class="ghost" id="windBtn">🍃 숲의 바람에 맡기기</button>
+    <button class="ghost" id="failAgainBtn">🔁 처음부터 다시 도전</button>
+  </div>
+</div>
+
+<!-- 광고 -->
+<!-- 리워드 광고 (AdMob 리워드 형식을 그대로 흉내 낸 목업) -->
+<div class="modal adfull" id="adModal">
+  <div class="adscreen">
+    <div class="adtop">
+      <span class="adbadge">테스트 광고</span>
+      <span class="adtimer" id="adTimer">5</span>
+      <button class="adx" id="adCancel" aria-label="닫기">✕</button>
+    </div>
+    <div class="adstage">
+      <div class="adart">🌲</div>
+      <div class="adtitle">여기에 실제 광고가 재생됩니다</div>
+      <div class="adcopy">AdMob <b>리워드 광고</b> 자리<br>
+        단위 ID를 넣으면 이 화면이 실제 광고로 바뀝니다</div>
+      <div class="adreward">시청 완료 시 <b>⭐ 행운의 상자 ×1</b></div>
+    </div>
+    <div class="adbottom">
+      <div class="adbar"><i id="adFill"></i></div>
+      <button class="cta" id="adDone" disabled>5초 남음…</button>
+      <div class="adnote">중간에 닫으면 보상이 지급되지 않습니다</div>
+    </div>
+  </div>
+</div>
+
+<!-- 업적 -->
+<div class="modal" id="achModal">
+  <div class="card">
+    <h2>🏅 업적</h2>
+    <p class="sub"><span id="achCount">0 / 5</span> 달성</p>
+    <div class="hist" id="achList"></div>
+    <button class="cta" id="achClose">닫기</button>
+  </div>
+</div>
+
+<!-- 당첨 명예의 전당 -->
+<div class="modal" id="lbModal">
+  <div class="card">
+    <h2>🎯 적중 명예의 전당</h2>
+    <p class="sub" style="margin-bottom:14px">앱이 발행한 번호가 회차 당첨번호와<br>
+    몇 개 맞았는지의 기록입니다</p>
+    <div class="drawbox" id="drawBox"></div>
+    <div class="tabs">
+      <button class="tab on" id="tabRound">이번 회차</button>
+      <button class="tab" id="tabAll">누적</button>
+    </div>
+    <div class="hist" id="lbList"></div>
+    <div class="mysum" id="myTicketSum"></div>
+    <p class="disc" id="lbDisc"></p>
+    <button class="cta" id="lbClose">닫기</button>
+  </div>
+</div>
+
+<!-- 목업 개발자 패널 -->
+<button id="exitBtn" title="게임 종료" aria-label="게임 종료">⏻</button>
+<button id="devBtn" title="목업 설정">🧪</button>
+<div class="modal" id="devModal">
+  <div class="card">
+    <h2>🧪 목업 설정</h2>
+    <p class="sub">Play 연동 전 흐름을 검증하기 위한 개발용 패널입니다.<br>
+    실제 배포 빌드에서는 숨겨집니다.</p>
+    <div class="devbox">
+      <label class="dev"><span>광고 결과</span>
+        <select id="devAd">
+          <option value="ok">정상 — 보상 지급</option>
+          <option value="nofill">재고 없음 (No fill)</option>
+          <option value="error">네트워크 오류</option>
+        </select></label>
+      <label class="dev"><span>광고 길이</span>
+        <select id="devLen">
+          <option value="5">5초</option><option value="15">15초</option><option value="30">30초</option>
+        </select></label>
+      <label class="dev"><span>로그인 상태</span>
+        <select id="devSign">
+          <option value="out">비로그인</option><option value="in">로그인됨</option>
+        </select></label>
+      <label class="dev"><span>기기 프레임</span>
+        <select id="devFrame">
+          <option value="off">끄기</option><option value="on">노치·상태바 표시</option>
+        </select></label>
+    </div>
+    <button class="ghost" id="devReset">저장 데이터 전체 초기화</button>
+    <button class="cta" id="devClose">닫기</button>
+  </div>
+</div>
+
+<div id="statusbar"><span>9:41</span><span class="sb-r">▮▮▮ ▲ 🔋</span></div>
+
+<!-- 5. 기록 -->
+<div class="modal" id="histModal">
+  <div class="card">
+    <h2>🎫 내 티켓함</h2>
+    <p class="sub">추첨이 끝나면 결과가 자동으로 표시됩니다<br>
+    <span style="color:#6f8478">원본은 최근 1회차분만 보관하고, 이후에는 회차·등수·적중 개수만 남깁니다<br>
+    서버 연결 전에는 모의 추첨으로 채점됩니다</span></p>
+    <div class="hist" id="histList"></div>
+    <button class="cta" id="histClose">닫기</button>
+    <button class="ghost" id="histClear">티켓 전체 삭제</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* =====================================================================
+   숲속 오솔길 보물찾기 · 로또 6/45 번호 생성기
+   45개 상자가 오솔길로 연결된 숲. 걸음(이동력) 안에서 6개를 열면 완성.
+   ===================================================================== */
+
+const cv   = document.getElementById('game');
+const ctx  = cv.getContext('2d');
+const el   = id => document.getElementById(id);
+
+const COLS = 9, ROWS = 5;              // 9 x 5 = 45개 상자
+const CELL = 200, JIT = 62, MARGIN = 170;
+const MAP  = { w: (COLS-1)*CELL + MARGIN*2, h: (ROWS-1)*CELL + MARGIN*2 };
+const GOAL = 6;                        // 모아야 할 상자 수
+const START_STEPS  = 18;               // 매 판 시작 걸음 — 버프와 무관하게 항상 리셋
+const MAP_GOLD_MAX = 6;                // 한 판 숲에 놓을 수 있는 황금 상자 최대치
+const AD_STARS     = 1;                // 광고 1회 보상: 별
+const AD_STEPS     = 2;                // 광고 1회 보상: 걸음 (창고에 쌓인다)
+const TOTEM_N      = 12;               // 행운의 토템 조각 수
+const TOTEM_AT_MAX = 6;                // 조각은 한 판에 정확히 1개, 여는 순서 중 하나에서
+const ANGEL_CHANCE = 0.35;             // 한 판에 초특급 행운상자가 나올 확률
+const ANGEL_MS     = 2400;             // 천사 연출 길이
+const WALK_SPEED = 340;                // px/s
+
+/* ---------- 유틸 ---------- */
+const rnd   = (a,b) => a + Math.random()*(b-a);
+const rndi  = (a,b) => Math.floor(rnd(a, b+1));
+const pick  = a => a[Math.floor(Math.random()*a.length)];
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+const dist  = (a,b,c,d) => Math.hypot(a-c, b-d);
+const lerp  = (a,b,t) => a + (b-a)*t;
+
+/* 암호학적 난수 (0 ~ n-1), 모듈로 편향 제거 */
+function secRand(n){
+  if (window.crypto && crypto.getRandomValues){
+    const limit = Math.floor(4294967296 / n) * n;
+    const a = new Uint32Array(1);
+    let v;
+    do { crypto.getRandomValues(a); v = a[0]; } while (v >= limit);
+    return v % n;
+  }
+  return Math.floor(Math.random()*n);
+}
+/* 1~45 완전 섞기 → 상자 45개에 하나씩 배정 */
+function shuffled45(){
+  const p = [];
+  for (let i=1; i<=45; i++) p.push(i);
+  for (let i=p.length-1; i>0; i--){
+    const j = secRand(i+1);
+    const t = p[i]; p[i] = p[j]; p[j] = t;
+  }
+  return p;
+}
+function ballStyle(n){
+  if (n <= 10) return { bg:'#fbc400', dark:true  };
+  if (n <= 20) return { bg:'#69c8f2', dark:true  };
+  if (n <= 30) return { bg:'#ff7272', dark:false };
+  if (n <= 40) return { bg:'#aaaaaa', dark:false };
+  return              { bg:'#b0d840', dark:true  };
+}
+
+/* ---------- 버프 ---------- */
+const BUFFS = {
+  good: {
+    key:'good', em:'🍀', name:'행운의 순풍', luck:'좋음',
+    tag:'적게 받고 크게 갚는 길',
+    steps: START_STEPS,
+    lines: [
+      ['시작 걸음', '<b>18보</b> — 모든 대답이 같다'],
+      ['순풍',      '오솔길을 지날 때 <b>35% 확률로 걸음을 쓰지 않는다</b>'],
+      ['멀리',      '걸음을 자주 아끼는 만큼 <b>더 깊은 숲까지 들어갈 수 있다</b>'],
+      ['한마디',    '운을 믿는 자에게 숲은 적게 내어주고, 대신 자주 눈감아 준다.']
+    ]
+  },
+  normal: {
+    key:'normal', em:'🧭', name:'든든한 나침반', luck:'보통',
+    tag:'앞을 읽으며 나아가는 길',
+    steps: START_STEPS,
+    lines: [
+      ['시작 걸음', '<b>18보</b> — 모든 대답이 같다'],
+      ['나침반',   '이웃한 상자의 <b>등급이 글자로</b> 보인다 (다른 대답은 색으로만 판단)'],
+      ['꾸준함',   '상자를 담을 때마다 <b>걸음 +1</b>'],
+      ['한마디',   '숫자는 누구에게도 보이지 않는다. 보이는 건 상자의 생김새뿐이다.']
+    ]
+  },
+  bad: {
+    key:'bad', em:'🕯', name:'액땜의 등불', luck:'나쁨',
+    tag:'흔들림 없이 멀리 가는 길',
+    steps: START_STEPS,
+    lines: [
+      ['시작 걸음', '<b>18보</b> — 모든 대답이 같다'],
+      ['평탄한 길', '<b>모든 오솔길이 1보</b>로 고정된다 (먼 길도 똑같이)'],
+      ['등불',     '행운 보정은 없다. 대신 계산이 어긋나지 않는다'],
+      ['한마디',   '운이 나쁘다 말하는 이에게, 숲은 가장 넉넉한 짐을 지워 보낸다.']
+    ]
+  }
+};
+
+/* ---------- 상자 등급 ---------- */
+const GRADES = {
+  low:  { key:'low',  name:'하급',        label:'하', tag:'낡은 나무 상자',
+          body:'#6b4a2a', lid:'#7d5730', trim:'#9a7644', gems:0,
+          bonus:0, skip:1, desc:'걸음 보너스 없음' },
+  mid:  { key:'mid',  name:'중급',        label:'중', tag:'은장 상자',
+          body:'#4f6069', lid:'#61757f', trim:'#d3e2ea', gems:1,
+          bonus:1, skip:1, desc:'담으면 걸음 +1' },
+  high: { key:'high', name:'상급',        label:'상', tag:'붉은 옻칠 상자',
+          body:'#7b322d', lid:'#933f38', trim:'#e9c46a', gems:2,
+          bonus:2, skip:2, desc:'담으면 걸음 +2' },
+  angel:{ key:'angel', name:'초특급 행운상자', label:'✦', tag:'천사가 지키는 상자',
+          body:'#e6e2f2', lid:'#f5f2ff', trim:'#fff3b0', gems:3,
+          bonus:8, skip:0, desc:'천사가 나타나 축복을 준다 — 걸음 +8 · 모든 오솔길이 1보' },
+  gold: { key:'gold', name:'행운의 상자', label:'⭐', tag:'광고로 얻은 황금 상자',
+          body:'#c08f26', lid:'#e0a92e', trim:'#fff0b8', gems:3,
+          bonus:4, skip:0, desc:'담으면 걸음 +4' }
+};
+const GRADE_MIX = { low: 24, mid: 14, high: 7 };   // 45개 분포
+const DICE_COUNT = 6;                              // 오솔길 중간에 끼우는 주사위 상자
+const DICE_CHAIN_MAX = 3;                          // 연속 주사위 상한 (무한 이동 방지)
+/* =====================================================================
+   행운의 토템 — 12조각 퍼즐
+   상자를 열 때 아직 없는 조각 중 하나가 무작위로 떨어진다.
+   12조각을 채우면 '전체 황금상자 모드' 1회권으로 바뀌고 토템은 소멸한다.
+   ===================================================================== */
+const TOTEM_KEY = 'forest-totem-v1';
+const TOTEM_PARTS = [
+  { n:'밑동',   c:'#6b4a2a' }, { n:'뿌리무늬', c:'#74512e' },
+  { n:'물결',   c:'#4f6069' }, { n:'이빨',     c:'#5b6b74' },
+  { n:'부리',   c:'#8a5a2b' }, { n:'눈',       c:'#7b322d' },
+  { n:'날개',   c:'#2f7d4f' }, { n:'잎사귀',   c:'#2a6a42' },
+  { n:'소용돌이',c:'#48376b' }, { n:'달',       c:'#5b4785' },
+  { n:'해',     c:'#c08f26' }, { n:'꼭대기',   c:'#e0a92e' }
+];
+const totem      = () => readJSON(TOTEM_KEY, { got:[], tickets:0 });
+const saveTotem  = t  => writeJSON(TOTEM_KEY, t);
+const totemDone  = () => totem().got.length >= TOTEM_N;
+const goldenTickets = () => totem().tickets || 0;
+
+/* 한 판에 한 번만 부른다 — 아직 없는 조각 하나를 준다.
+   12번째 조각이면 { piece, complete:true } 로 알린다. */
+function takeTotemPiece(){
+  const t = totem();
+  const left = [];
+  for (let i=0; i<TOTEM_N; i++) if (!t.got.includes(i)) left.push(i);
+  if (!left.length) return null;
+  const piece = left[Math.floor(Math.random()*left.length)];
+  t.got.push(piece);
+  const complete = t.got.length >= TOTEM_N;
+  if (complete){ t.tickets = (t.tickets||0) + 1; t.got = []; }   /* 1회권으로 바뀌고 소멸 */
+  saveTotem(t);
+  cloudSync();
+  return { piece, complete, have: complete ? TOTEM_N : t.got.length };
+}
+
+/* 토템 그림 — 아래에서 위로 12층. 없는 조각은 점선으로 비워 둔다. */
+function totemSVG(got, size){
+  const w = 76, segH = 15, h = segH*TOTEM_N + 10;
+  let out = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + (size||96) + '" ' +
+            'height="' + ((size||96)*h/w) + '" aria-hidden="true">';
+  for (let i=0; i<TOTEM_N; i++){
+    const has = got.includes(i);
+    const y = h - 6 - (i+1)*segH;
+    const inset = 4 + i*1.4;                       /* 위로 갈수록 좁아진다 */
+    const x = inset, ww = w - inset*2;
+    const p = TOTEM_PARTS[i];
+    if (!has){
+      out += '<rect x="' + x + '" y="' + y + '" width="' + ww + '" height="' + (segH-2) +
+             '" rx="3" fill="none" stroke="rgba(255,255,255,.16)" stroke-dasharray="3 3"/>';
+      continue;
+    }
+    out += '<rect x="' + x + '" y="' + y + '" width="' + ww + '" height="' + (segH-2) +
+           '" rx="3" fill="' + p.c + '" stroke="rgba(0,0,0,.35)" stroke-width=".6"/>';
+    const cx = w/2, cy = y + (segH-2)/2;
+    if (i === TOTEM_N-1)                            /* 꼭대기: 관 */
+      out += '<path d="M' + (cx-9) + ' ' + (cy+3) + ' L' + cx + ' ' + (cy-5) +
+             ' L' + (cx+9) + ' ' + (cy+3) + 'Z" fill="#fff0b8"/>';
+    else if (i % 3 === 0)                            /* 눈 한 쌍 */
+      out += '<circle cx="' + (cx-7) + '" cy="' + cy + '" r="2.1" fill="rgba(255,255,255,.85)"/>' +
+             '<circle cx="' + (cx+7) + '" cy="' + cy + '" r="2.1" fill="rgba(255,255,255,.85)"/>';
+    else if (i % 3 === 1)                            /* 물결 */
+      out += '<path d="M' + (cx-12) + ' ' + cy + ' q3 -3 6 0 t6 0 t6 0" fill="none" ' +
+             'stroke="rgba(255,255,255,.7)" stroke-width="1.4"/>';
+    else                                             /* 마름모 */
+      out += '<path d="M' + cx + ' ' + (cy-4) + ' L' + (cx+5) + ' ' + cy +
+             ' L' + cx + ' ' + (cy+4) + ' L' + (cx-5) + ' ' + cy + 'Z" fill="rgba(255,255,255,.75)"/>';
+  }
+  return out + '</svg>';
+}
+
+/* 광고로 모은 걸음 — 판이 바뀌어도 사라지지 않는 창고 */
+const BKEY = 'forest-banked-steps-v1';
+const bankedSteps = () => { try { return Math.max(0, parseInt(localStorage.getItem(BKEY)||'0',10)||0); } catch(e){ return 0; } };
+function setBanked(v){ try { localStorage.setItem(BKEY, String(Math.max(0,v))); } catch(e){} }
+
+/* 광고로 모은 행운의 상자 (브라우저에 저장) */
+const GKEY = 'forest-gold-boxes-v1';
+let goldStock = 0;
+function loadGold(){                       /* 보유 개수에 상한을 두지 않는다 */
+  try { return Math.max(0, parseInt(localStorage.getItem(GKEY) || '0', 10) || 0); }
+  catch(e){ return 0; }
+}
+function saveGold(){ try { localStorage.setItem(GKEY, String(goldStock)); } catch(e){} }
+
+/* ---------- 상태 ---------- */
+let nodes = [], edges = [], entrance = null;
+let cur = null, steps = 0, maxSteps = 0, opened = [];
+let revealed = false;                 // 전체 지도를 펼친 상태 (자리 공개 / 숫자 공개 공통)
+let revealNums = false;               // 숫자까지 드러낸 상태 — '이대로 확정' 뒤에만
+let travel = null;                    // 여러 칸 연속 이동 { legs, i }
+let totemAt = 1;                      // 이번 판에서 조각이 나올 개봉 순번 (1~6)
+let totemGiven = false;                // 이번 판 조각 지급 여부 (버리기로 다시 채워도 한 번만)
+let angel = null;                     // 천사 연출 { node, t0 }
+let blessed = false;                  // 천사의 축복을 받은 판 (모든 오솔길 1보)
+let sparks = [];                      // 주인공을 휘감는 반짝이
+let paths  = null;                    // 현재 위치 기준 최단거리표
+let placeGold = 0;                    // 이번 판 숲에 놓을 황금 상자 수 (별 소모량)
+let goldenMode = false;               // 전체 황금상자 모드 (토템 1회권)
+let adSteps = 0;                      // 이번 판에 광고로 받은 걸음
+let forced = null;                    // 주사위로 끌려가는 중 { left, from }
+let diceChain = 0, diceRolls = 0;     // 연속 주사위 횟수 / 한 판 총 굴림
+let buff = BUFFS.normal;
+let running = false, finished = false;
+let mover = null;                 // 이동 애니메이션
+let startTime = 0, moveCount = 0;
+let parts = [], flies = [], deco = [];
+let groundPattern = null;
+let overview = false;
+
+/* ---------- 사운드 ---------- */
+let actx = null, soundOn = true;
+function audio(){
+  if (!soundOn) return null;
+  if (!actx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    actx = new AC();
+  }
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function tone(freq, dur, type, vol, delay){
+  const a = audio(); if (!a) return;
+  const t0 = a.currentTime + (delay||0);
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(vol || .12, t0 + .012);
+  g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(t0); o.stop(t0 + dur + .05);
+}
+function sfxStep(){ tone(rnd(180,240), .09, 'triangle', .06); }
+function sfxOpen(){ [523,659,784,1046].forEach((f,i) => tone(f,.3,'triangle',.12,i*.07)); }
+function sfxLuck(){ [880,1174].forEach((f,i) => tone(f,.22,'sine',.1,i*.08)); }
+function sfxDone(){ [523,659,784,1046,1318,1568].forEach((f,i) => tone(f,.5,'triangle',.12,i*.1)); }
+function sfxNo(){ tone(120,.18,'square',.06); }
+function sfxTake(){ [784,1046].forEach((f,i) => tone(f,.24,'sine',.11,i*.07)); }
+function sfxSkip(){ [440,330].forEach((f,i) => tone(f,.2,'sine',.07,i*.07)); }
+function sfxAngel(){ [659,784,988,1318,1568,1976].forEach((f,i) => tone(f,.9,'sine',.09,i*.13)); }
+
+/* ---------- 지도 생성 ---------- */
+function key(r,c){ return r*COLS + c; }
+
+function makeEdge(a, b){
+  const len = dist(a.x, a.y, b.x, b.y);
+  const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+  const nx = -(b.y-a.y)/len, ny = (b.x-a.x)/len;      // 수직 벡터
+  const bend = rnd(-1,1) * len * 0.14;
+  const e = {
+    a, b, len,
+    cx: mx + nx*bend, cy: my + ny*bend,               // 2차 베지어 제어점
+    cost: 1, visited: false
+  };
+  e.cost = len > CELL*1.18 ? 2 : 1;
+  edges.push(e);
+  a.adj.push({ to:b, e }); b.adj.push({ to:a, e });
+  return e;
+}
+function bez(e, from, t){
+  const p0 = from, p2 = (from === e.a ? e.b : e.a);
+  const u = 1-t;
+  return {
+    x: u*u*p0.x + 2*u*t*e.cx + t*t*p2.x,
+    y: u*u*p0.y + 2*u*t*e.cy + t*t*p2.y
+  };
+}
+
+function genMap(){
+  nodes = []; edges = []; parts = []; deco = [];
+  const perm = shuffled45();
+
+  for (let r=0; r<ROWS; r++){
+    for (let c=0; c<COLS; c++){
+      nodes.push({
+        id: nodes.length, r, c,
+        x: MARGIN + c*CELL + rnd(-JIT, JIT),
+        y: MARGIN + r*CELL + rnd(-JIT, JIT),
+        num: perm[nodes.length],
+        opened: false, chest: true, adj: [], bob: Math.random()*6.28
+      });
+    }
+  }
+  /* 등급 분포: 하 24 · 중 14 · 상 7, 그리고 보유한 만큼 황금 상자로 승격 */
+  const gpool = [];
+  Object.keys(GRADE_MIX).forEach(k => { for (let i=0; i<GRADE_MIX[k]; i++) gpool.push(k); });
+  while (gpool.length < nodes.length) gpool.push('low');
+  for (let i=gpool.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    const t = gpool[i]; gpool[i] = gpool[j]; gpool[j] = t;
+  }
+  nodes.forEach((n,i) => { n.grade = GRADES[gpool[i]]; });
+
+  /* 초특급 행운상자 — 가끔 한 개만 숨어 있다 */
+  if (Math.random() < ANGEL_CHANCE){
+    const pool = nodes.filter(n => n.chest);
+    if (pool.length) pool[Math.floor(Math.random()*pool.length)].grade = GRADES.angel;
+  }
+  if (goldenMode){                       /* 토템 1회권 — 45개 상자 전부 황금 */
+    nodes.forEach(n => { if (n.chest && n.grade.key !== 'angel') n.grade = GRADES.gold; });
+  }
+  let gleft = goldenMode ? 0 : clamp(placeGold, 0, MAP_GOLD_MAX);
+  const order = nodes.map((_,i) => i);
+  for (let i=order.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    const t = order[i]; order[i] = order[j]; order[j] = t;
+  }
+  for (const i of order){
+    if (gleft <= 0) break;
+    if (nodes[i].grade.key === 'gold') continue;
+    nodes[i].grade = GRADES.gold; gleft--;
+  }
+
+  const N = (r,c) => (r>=0 && r<ROWS && c>=0 && c<COLS) ? nodes[key(r,c)] : null;
+
+  /* 격자 이웃 연결 */
+  for (let r=0; r<ROWS; r++){
+    for (let c=0; c<COLS; c++){
+      const n = N(r,c);
+      if (c < COLS-1 && Math.random() < .9) makeEdge(n, N(r,c+1));
+      if (r < ROWS-1 && Math.random() < .9) makeEdge(n, N(r+1,c));
+      /* 셀마다 대각선은 최대 1개만 (선 교차 방지) */
+      if (r < ROWS-1 && c < COLS-1 && Math.random() < .3){
+        if (Math.random() < .5) makeEdge(n, N(r+1,c+1));
+        else                    makeEdge(N(r,c+1), N(r+1,c));
+      }
+    }
+  }
+  /* 끊긴 덩어리 잇기 (union-find) */
+  const par = nodes.map((_,i) => i);
+  const find = i => { while (par[i] !== i){ par[i] = par[par[i]]; i = par[i]; } return i; };
+  const uni  = (i,j) => { const a = find(i), b = find(j); if (a !== b){ par[a] = b; return true; } return false; };
+  for (const e of edges) uni(e.a.id, e.b.id);
+  for (let r=0; r<ROWS; r++){
+    for (let c=0; c<COLS; c++){
+      const n = N(r,c);
+      [[0,1],[1,0]].forEach(d => {
+        const m = N(r+d[0], c+d[1]);
+        if (m && find(n.id) !== find(m.id)){ makeEdge(n, m); uni(n.id, m.id); }
+      });
+    }
+  }
+
+  /* 숲 입구 노드 (상자 없음) — 지도 네 변 중 한 곳 */
+  const side = rndi(0,3);
+  let ex, ey;
+  if (side === 0){ ex = 60;            ey = MAP.h/2 + rnd(-180,180); }
+  if (side === 1){ ex = MAP.w - 60;    ey = MAP.h/2 + rnd(-180,180); }
+  if (side === 2){ ex = MAP.w/2 + rnd(-300,300); ey = 60; }
+  if (side === 3){ ex = MAP.w/2 + rnd(-300,300); ey = MAP.h - 60; }
+  entrance = { id: nodes.length, x: ex, y: ey, num: 0, opened: true,
+               chest: false, adj: [], bob: 0, r: -1, c: -1 };
+  nodes.push(entrance);
+  const near = nodes.filter(n => n.chest)
+                    .sort((p,q) => dist(ex,ey,p.x,p.y) - dist(ex,ey,q.x,q.y))
+                    .slice(0, 3);
+  near.forEach(n => makeEdge(entrance, n));
+
+  /* --- 주사위 상자: 오솔길 여섯 곳의 '중간'에 끼워 넣는다 --- */
+  const splitEdge = (e, x, y) => {
+    const d = { id: nodes.length, x, y, dice:true, used:false, chest:false,
+                num:0, opened:true, adj:[], bob: Math.random()*6.28, r:-1, c:-1 };
+    nodes.push(d);
+    edges.splice(edges.indexOf(e), 1);
+    e.a.adj = e.a.adj.filter(l => l.e !== e);
+    e.b.adj = e.b.adj.filter(l => l.e !== e);
+    makeEdge(e.a, d); makeEdge(d, e.b);
+    return d;
+  };
+  /* 숲을 3x2 로 나눠 지역마다 하나씩 — 어디를 돌아다녀도 하나는 근처에 오도록.
+     같은 값이면 갈림길(이웃이 많은 상자)을 잇는 오솔길을 고른다. 지나칠 확률이 높다. */
+  const cand = edges.filter(x => x.a.chest && x.b.chest);
+  const placed = [];
+  const COLS_R = 3, ROWS_R = 2;
+  const takeEdge = e => {
+    const m = bez(e, e.a, .5);
+    e.__used = true;
+    placed.push(splitEdge(e, m.x, m.y));
+  };
+  for (let r=0; r<ROWS_R && placed.length < DICE_COUNT; r++){
+    for (let c=0; c<COLS_R && placed.length < DICE_COUNT; c++){
+      const cx = MARGIN + (c + .5) * (MAP.w - MARGIN*2) / COLS_R;
+      const cy = MARGIN + (r + .5) * (MAP.h - MARGIN*2) / ROWS_R;
+      let best = null, bestScore = -Infinity;
+      for (const e of cand){
+        if (e.__used) continue;
+        const m = bez(e, e.a, .5);
+        const d = dist(m.x, m.y, cx, cy);
+        if (d > 430) continue;
+        if (placed.some(q => dist(m.x, m.y, q.x, q.y) < 250)) continue;
+        const deg = e.a.adj.length + e.b.adj.length;
+        const score = deg * 34 - d + Math.random() * 60;
+        if (score > bestScore){ bestScore = score; best = e; }
+      }
+      if (best) takeEdge(best);
+    }
+  }
+  /* 지역에 후보가 없어 모자라면 남은 곳에서 채운다 */
+  for (const e of cand){
+    if (placed.length >= DICE_COUNT) break;
+    if (e.__used) continue;
+    const m = bez(e, e.a, .5);
+    if (placed.some(q => dist(m.x, m.y, q.x, q.y) < 250)) continue;
+    takeEdge(e);
+  }
+
+  if (buff.key === 'bad') edges.forEach(e => e.cost = 1);
+
+  /* 배경 장식: 노드/오솔길에서 떨어진 곳에만 */
+  const away = (x,y) => {
+    for (const n of nodes) if (dist(x,y,n.x,n.y) < 74) return false;
+    for (const e of edges){
+      for (let t=0; t<=1; t+=.12){
+        const p = bez(e, e.a, t);
+        if (dist(x,y,p.x,p.y) < 46) return false;
+      }
+    }
+    return true;
+  };
+  /* 밑동이 노드보다 아래라도 수관이 위로 뻗어 상자·주인공을 덮으면 배제 */
+  const covers = (x, y, halfW, height) => nodes.some(n =>
+    Math.abs(x - n.x) < halfW + 24 && y > n.y - 24 && y - n.y < height + 52);
+  const DF = cssW && cssW < 700 ? .55 : 1;      // 작은 화면에선 장식을 줄인다
+  for (let i=0; i<Math.round(300*DF); i++){
+    const x = rnd(-40, MAP.w+40), y = rnd(20, MAP.h+40);
+    const rr = rnd(30,54), th = rr*rnd(1.4,2.1);
+    if (!away(x,y) || covers(x, y, rr, th + rr*0.9)) continue;
+    deco.push({ t:'tree', x, y, r:rr, th, seed:Math.random()*99,
+                tone:rndi(0,3), lobes:rndi(4,6) });
+  }
+  for (let i=0; i<Math.round(140*DF); i++){
+    const x = rnd(-20, MAP.w+20), y = rnd(20, MAP.h+20);
+    const rr = rnd(15,26);
+    if (!away(x,y) || covers(x, y, rr, rr*1.4)) continue;
+    deco.push({ t:'bush', x, y, r:rr, seed:Math.random()*99 });
+  }
+  for (let i=0; i<Math.round(700*DF); i++){
+    const x = rnd(-20, MAP.w+20), y = rnd(10, MAP.h+20);
+    deco.push({ t:'grass', x, y, h:rnd(7,15), seed:Math.random()*99 });
+  }
+  for (let i=0; i<Math.round(150*DF); i++){
+    deco.push({ t:'flower', x:rnd(0,MAP.w), y:rnd(0,MAP.h),
+                c:pick(['#f2e2b8','#dfa8d8','#a8c8f0','#f5c0a0']), seed:Math.random()*99 });
+  }
+  for (let i=0; i<Math.round(70*DF); i++){
+    deco.push({ t:'stone', x:rnd(0,MAP.w), y:rnd(0,MAP.h), r:rnd(6,14) });
+  }
+  deco.sort((a,b) => a.y - b.y);
+
+  flies = [];
+  for (let i=0; i<Math.round(80*DF); i++)
+    flies.push({ x:rnd(0,MAP.w), y:rnd(0,MAP.h), a:Math.random()*6.28,
+                 sp:rnd(9,26), ph:Math.random()*6.28, r:rnd(1.1,2.3) });
+}
+
+/* ---------- 화면 / 카메라 ---------- */
+let dpr = 1, cssW = 0, cssH = 0;
+let camX = 0, camY = 0, vs = 1, targetVS = 1;
+let freeLook = false;               // 사용자가 지도를 직접 움직인 상태
+
+function followScale(){
+  return cssW < 700 ? clamp(cssW/780, .38, .95) : clamp(cssW/1180, .6, 1.15);
+}
+const OV_TOP = 190;                      // 상단 HUD 가림 보정
+function fitScale(){
+  return Math.min(cssW/(MAP.w+230), (cssH-OV_TOP)/(MAP.h+230));
+}
+function resize(){
+  dpr  = Math.min(window.devicePixelRatio || 1, (window.innerWidth < 700 ? 1.75 : 2));
+  cssW = cv.clientWidth || window.innerWidth;
+  cssH = cv.clientHeight || window.innerHeight;
+  cv.width  = Math.round(cssW*dpr);
+  cv.height = Math.round(cssH*dpr);
+  targetVS = overview ? fitScale() : followScale();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 130));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', () => setTimeout(resize, 60));
+
+const playerPos = { x:0, y:0 };
+
+/* ---------- 진행 ---------- */
+function startRun(keepBuff){
+  ['luckModal','buffModal','starModal','resultModal','failModal','histModal','achModal','lbModal','devModal','totemModal','exitModal']
+    .forEach(m => el(m).classList.remove('on'));
+  if (!keepBuff) buff = BUFFS.normal;
+  genMap();
+  cur = entrance;
+  playerPos.x = cur.x; playerPos.y = cur.y;
+  camX = cur.x; camY = cur.y;
+  steps = maxSteps = buff.steps;
+  opened = []; moveCount = 0; finished = false; mover = null;
+  revealed = false; revealNums = false;
+  forced = null; travel = null; angel = null; blessed = false; sparks = [];
+  diceChain = 0; diceRolls = 0; adSteps = 0;
+  el('diceLayer').classList.remove('on');
+  document.body.classList.remove('dicing');
+  overview = false; freeLook = false; targetVS = followScale();
+  el('mapBtn').classList.remove('on'); el('hud').classList.remove('free');
+  totemAt = 1 + secRand(TOTEM_AT_MAX);   /* 몇 번째 상자에서 나올지 미리 정한다 */
+  totemGiven = false;
+  computePaths();
+  startTime = performance.now();
+  running = true;
+  document.body.classList.add('playing');
+  Play.showBanner();
+  el('hint').classList.remove('fade');
+  audio();
+  renderSlots(); updateHUD(); updateGoldUI();
+  toast('상자 <b>6개</b>를 담으면 숫자가 드러난다 · 걸음 ' + steps + '보');
+}
+
+function edgeCost(e){ return e.cost; }
+
+/* 현재 위치에서 모든 상자까지의 최단 걸음 수 (다익스트라).
+   노드가 50여 개뿐이라 단순 선형 탐색으로 충분하다. cur 이 바뀔 때만 다시 계산. */
+function computePaths(){
+  const dist = new Map(), prev = new Map(), done = new Set();
+  for (const n of nodes) dist.set(n, Infinity);
+  if (!cur){ paths = { dist, prev }; return; }
+  dist.set(cur, 0);
+  for (;;){
+    let best = null, bd = Infinity;
+    for (const n of nodes){
+      if (done.has(n)) continue;
+      const d = dist.get(n);
+      if (d < bd){ bd = d; best = n; }
+    }
+    if (!best) break;
+    done.add(best);
+    for (const l of best.adj){
+      const nd = bd + edgeCost(l.e);
+      if (nd < dist.get(l.to)){ dist.set(l.to, nd); prev.set(l.to, { from: best, link: l }); }
+    }
+  }
+  paths = { dist, prev };
+}
+function pathTo(node){
+  if (!paths || !paths.prev.has(node)) return null;
+  const out = [];
+  let n = node, guard = 0;
+  while (n !== cur && guard++ < 200){
+    const p = paths.prev.get(n);
+    if (!p) return null;
+    out.unshift(p.link);
+    n = p.from;
+  }
+  return out.length ? out : null;
+}
+const reachCost = node => paths ? paths.dist.get(node) : Infinity;
+
+/* 한 노드에서 각 노드까지의 '칸 수' — 주사위가 최대한 멀리 보내는 데 쓴다 */
+function hopsFrom(origin){
+  const h = new Map([[origin, 0]]);
+  const q = [origin];
+  while (q.length){
+    const n = q.shift();
+    for (const l of n.adj) if (!h.has(l.to)){ h.set(l.to, h.get(n)+1); q.push(l.to); }
+  }
+  return h;
+}
+
+function canTravel(){
+  return running && !finished && !mover && !revealed && !forced && !travel && !angel;
+}
+
+/* 멀리 있는 상자를 눌러도 된다 — 최단 경로를 따라가고 그만큼 걸음을 뺀다.
+   지나치는 상자는 열리지 않고, 도착한 상자만 열린다. */
+function travelTo(node){
+  if (!canTravel()) return;
+  if (node === cur){ toast('이미 이 자리에 서 있다'); return; }
+  const path = pathTo(node);
+  if (!path){ sfxNo(); toast('그 상자로 이어진 길이 없다'); return; }
+
+  let cost = 0, freeLegs = 0;
+  const legs = path.map(l => {
+    const f = buff.key === 'good' && Math.random() < .35;   /* 순풍은 구간마다 판정 */
+    if (f) freeLegs++; else cost += edgeCost(l.e);
+    return { link: l, free: f };
+  });
+  if (cost > steps){
+    sfxNo();
+    toast('걸음이 모자라다 — 그 상자까지 <b>' + reachCost(node) + '보</b> 필요');
+    return;
+  }
+  steps -= cost;
+  moveCount += legs.length;
+  freeLook = false; el('hud').classList.remove('free');
+  el('hint').classList.add('fade');
+  travel = { legs, i: 0 };
+  if (freeLegs){ sfxLuck(); toast('🍀 순풍! ' + freeLegs + '구간을 걸음 없이 지났다'); }
+  else if (legs.length > 1) toast('👣 ' + legs.length + '칸을 지나 이동 · 걸음 -' + cost);
+  updateHUD();
+  nextLeg();
+}
+function nextLeg(){
+  if (!travel || travel.i >= travel.legs.length){ travel = null; return false; }
+  const l = travel.legs[travel.i++].link;
+  l.e.visited = true;
+  mover = { e: l.e, from: cur, to: l.to, t: 0,
+            dur: Math.max(.18, l.e.len / (WALK_SPEED * 1.4)) };
+  sfxStep();
+  return true;
+}
+
+function arrive(node){
+  cur = node;
+  mover = null;
+  if (finished) return;
+  playerPos.x = node.x; playerPos.y = node.y;
+
+  computePaths();
+  /* 주사위에 휩쓸려 가는 중 — 지나치는 상자는 열지 않는다 */
+  if (forced){
+    if (forced.left > 0 && forcedStep()) return;
+    const stopped = forced.left;            /* 남은 칸이 있는데 멈췄다 = 막다른 길 */
+    forced = null;
+    if (stopped > 0) toast('🎲 길이 막혔다 — <b>' + stopped + '칸</b>을 남기고 멈춘다');
+  }
+  /* 최단거리 이동 경유 중 — 도착지에서만 상자를 연다 */
+  if (travel){
+    if (travel.i < travel.legs.length){ nextLeg(); return; }
+    travel = null;
+  }
+  /* 주사위 상자 도착 */
+  if (node.dice && !node.used){ rollDice(node); return; }
+  diceChain = 0;
+
+  if (node.chest && !node.opened){
+    /* 숫자는 보여주지 않는다 — 선호가 끼어들 여지 없이 그대로 담는다 */
+    node.opened = true;
+    node.taken  = true;
+    node.openT  = performance.now();
+    opened.push(node.num);
+    sfxOpen(); sfxTake();
+    burst(node.x, node.y);
+
+    const gr = node.grade;
+    if (gr.bonus > 0) steps += gr.bonus;
+    if (gr.key === 'gold') unlockAch('gold_take');
+    if (buff.key === 'normal') steps += 1;
+    renderSlots();
+
+    /* 토템 조각은 한 판에 딱 하나 — 미리 정해둔 순번의 상자에서 나온다 */
+    const drop = (!totemGiven && opened.length === totemAt) ? takeTotemPiece() : null;
+    if (drop){ totemGiven = true; node.totem = drop.piece; }
+    if (drop){
+      updateHUD();
+      if (drop.complete){
+        [523,659,784,1046,1318].forEach((f,i) => tone(f,.45,'triangle',.12,i*.1));
+        setTimeout(showTotemComplete, 500);
+      } else {
+        [740,988].forEach((f,i) => tone(f,.22,'triangle',.1,i*.07));
+        toast('🗿 <b>' + TOTEM_PARTS[drop.piece].n + '</b> 조각 획득 · 토템 ' +
+              drop.have + '/' + TOTEM_N);
+      }
+    }
+    updateHUD();
+    /* 초특급 행운상자 — 천사가 내려와 지팡이로 축복을 준다 */
+    if (gr.key === 'angel'){ startAngel(node); return; }
+    if (opened.length >= GOAL){ beginReveal(); return; }
+    toast('상자를 담았다 · <b>' + (GOAL - opened.length) + '개</b> 남음' +
+          (gr.bonus ? ' · ' + gr.name + ' 걸음 +' + gr.bonus : ''));
+    checkStuck();
+    return;
+  }
+  updateHUD();
+  checkStuck();
+}
+
+/* ---------- 초특급 행운상자 ----------
+   45개 중 어쩌다 하나. 열면 천사가 내려와 지팡이를 휘두르고,
+   반짝이가 주인공을 휘감은 뒤 사라진다. 남는 것은 축복이다. */
+function startAngel(node){
+  angel = { node, t0: performance.now() };
+  unlockAch('angel');
+  sfxAngel();
+  toast('✦ <b>천사가 내려온다</b> — 지팡이 끝에 빛이 맺힌다');
+  setTimeout(endAngel, ANGEL_MS);
+}
+function endAngel(){
+  if (!angel) return;
+  angel = null;
+  blessed = true;
+  edges.forEach(e => e.cost = 1);      /* 축복 — 모든 오솔길이 1보 */
+  computePaths();
+  updateHUD();
+  [1046,1318,1568].forEach((f,i) => tone(f,.5,'sine',.1,i*.1));
+  toast('✦ <b>행운의 축복</b> — 걸음 +' + GRADES.angel.bonus +
+        ' · 이제 모든 오솔길이 <b>1보</b>다');
+  if (finished) return;
+  if (opened.length >= GOAL){ beginReveal(); return; }
+  checkStuck();
+}
+
+/* ---------- 주사위 상자 ----------
+   오솔길 중간에 놓인 상자. 열면 1~6이 나오고 그 수만큼 무작위 오솔길로
+   휩쓸려 간다. 걸음은 들지 않는다 — 이게 '행운'인 대목. */
+const DIE_FACES = {                    /* 3x3 격자에서 켤 칸 (0~8) */
+  1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8]
+};
+function paintDie(v){
+  const pips = el('die').children;
+  const on = DIE_FACES[v] || [];
+  for (let i=0; i<9; i++) pips[i].classList.toggle('on', on.includes(i));
+}
+
+function rollDice(node){
+  node.used = true;
+  node.openT = performance.now();
+  diceChain++; diceRolls++;
+  const v = 1 + secRand(6);
+  node.roll = v;
+  burst(node.x, node.y);
+  sfxOpen();
+
+  const layer = el('diceLayer'), die = el('die'), msg = el('diceMsg');
+  document.body.classList.add('dicing');
+  layer.classList.add('on');
+  die.classList.add('rolling'); die.classList.remove('settled');
+  msg.textContent = diceChain > 1 ? '또 주사위다!' : '굴리는 중…';
+
+  let ticks = 0;
+  const spin = setInterval(() => {
+    paintDie(1 + Math.floor(Math.random()*6));
+    tone(300 + Math.random()*260, .05, 'square', .05);
+    if (++ticks > 10){
+      clearInterval(spin);
+      die.classList.remove('rolling'); die.classList.add('settled');
+      paintDie(v);
+      [660, 880].forEach((f,i) => tone(f, .25, 'triangle', .11, i*.09));
+      if (v === 6) unlockAch('dice_six');
+      msg.innerHTML = '<b>' + v + '</b>칸 — 숲이 당신을 끌고 갑니다<br>' +
+                      '<span style="font-size:12px;color:#9cb3a4">걸음은 들지 않는다</span>';
+      setTimeout(() => {
+        layer.classList.remove('on');
+        document.body.classList.remove('dicing');
+        startForced(v);
+      }, 1050);
+    }
+  }, 85);
+}
+
+function startForced(n){
+  /* 아래 forced 에 출발점 기준 칸 수와 지나온 자리를 담아, 되돌아가지 않고 멀어지게 한다 */
+  if (diceChain > DICE_CHAIN_MAX){
+    toast('주사위가 잦아 숲이 잠잠해졌다');
+    diceChain = 0;
+    updateHUD(); checkStuck();
+    return;
+  }
+  freeLook = false; el('hud').classList.remove('free');
+  forced = { left: n, from: null, hops: hopsFrom(cur), seen: new Set([cur]) };
+  toast('🎲 ' + n + '칸 이동 — 걸음 소모 없음');
+  if (!forcedStep()){ forced = null; computePaths(); updateHUD(); checkStuck(); }
+}
+
+/* 한 칸 밀어낸다. 밀어낼 곳이 없으면 false — 그 자리에서 멈춘다. */
+function forcedStep(){
+  if (!forced || forced.left <= 0) return false;
+  const links = cur.adj;
+  if (!links.length) return false;
+
+  /* 후퇴 없음 — 지나온 자리는 다시 밟지 않는다. 막다른 길이면 되돌아가지 않고 멈춘다.
+     남은 갈래 중 출발점에서 가장 멀어지는 쪽만 남기고 그 안에서 무작위로 고른다. */
+  const pool = links.filter(l => !forced.seen.has(l.to));
+  if (!pool.length) return false;
+  let far = -1;
+  for (const l of pool){ const h = forced.hops.get(l.to); if (h !== undefined && h > far) far = h; }
+  const best = pool.filter(l => forced.hops.get(l.to) === far);
+  const link = (best.length ? best : pool)[Math.floor(Math.random() * (best.length ? best.length : pool.length))];
+  forced.seen.add(link.to);
+  forced.from = cur;
+  forced.left--;
+  link.e.visited = true;
+  mover = { e: link.e, from: cur, to: link.to, t: 0,
+            dur: Math.max(.22, link.e.len / (WALK_SPEED * 1.5)) };
+  sfxStep();
+  return true;
+}
+
+/* ---------- 담기 / 지나치기 ---------- */
+/* ---------- 두 번의 공개 ----------
+   1단계(여섯을 채운 직후) — 숲 전체를 펼치되 **숫자는 그대로 봉인**한다.
+     상자는 상자 그대로 보이고, 🗿 토템 · ✦ 천사 · ⭐ 행운의 상자가 어디에
+     있었는지 자리만 알려준다. 버리고 다시 들어갈 수 있으므로, 여기서 숫자를
+     보여주면 다시 찾는 일이 무의미해진다.
+   2단계('이대로 확정'을 누른 뒤) — 숲을 다시 펼쳐 45개 숫자를 5초간 공개. */
+const MARK_MS   = 2600;               // 자리 공개
+const REVEAL_MS = 5000;               // 숫자 공개
+function openMap(){
+  overview = true; freeLook = false;
+  targetVS = fitScale();
+  el('mapBtn').classList.add('on');
+  el('hud').classList.remove('free');
+}
+function beginReveal(){
+  revealed = true; revealNums = false;
+  running = false;
+  mover = null; forced = null; travel = null;
+  openMap();
+  renderSlots();
+  [523,659,784].forEach((f,i) => tone(f,.34,'triangle',.09,i*.08));
+  toast('🗺 <b>숲이 자리를 알려준다</b> — 🗿 토템 · ✦ 천사 · ⭐ 행운의 상자가 있던 자리<br>' +
+        '<span style="opacity:.8">숫자는 아직 봉인된 채다</span>');
+  setTimeout(openTrim, MARK_MS);
+}
+/* '이대로 확정' — 숲을 다시 펼쳐 숫자를 5초간 공개한 뒤 결과로 */
+function beginNumberReveal(){
+  if (finished) return;
+  closeModal('trimModal');
+  revealed = true; revealNums = true;
+  running = false;
+  openMap();
+  vs = fitScale() * 1.42;              /* 다시 펼치는 느낌 — 살짝 당겼다 물러난다 */
+  renderSlots();
+  sfxDone();
+  [523,659,784,1046].forEach((f,i) => tone(f,.4,'triangle',.1,i*.09));
+  toast('🔓 <b>숲이 속을 드러낸다</b> — 5초 동안 45개 상자의 숫자를 모두 보여준다');
+  setTimeout(() => finish(false), REVEAL_MS);
+}
+
+/* ---------- 상자 정리 ----------
+   여섯을 채운 뒤, 마음에 걸리는 상자는 버리고 다시 찾을 수 있다.
+   버리는 데 걸음은 들지 않는다 — 다시 찾아가는 걸음이 대가다.
+   버린 뒤에는 숲이 남은 상자의 번호를 다시 섞는다. */
+let trimDrop = new Set();
+function takenNodes(){
+  return nodes.filter(n => n.taken).sort((a,b) => (a.openT||0) - (b.openT||0));
+}
+function renderTrim(){
+  const list = takenNodes();
+  el('trimGrid').innerHTML = list.map((nd,i) => {
+    const st = ballStyle(nd.num);
+    return '<div class="trimb' + (st.dark ? ' d' : '') +
+           (trimDrop.has(i) ? ' off' : '') + '" data-i="' + i +
+           '" style="background:' + st.bg + '">' + nd.num + '</div>';
+  }).join('');
+  el('trimGrid').querySelectorAll('.trimb').forEach(b => {
+    b.addEventListener('click', () => {
+      const i = +b.dataset.i;
+      if (trimDrop.has(i)) trimDrop.delete(i); else trimDrop.add(i);
+      tone(trimDrop.has(i) ? 330 : 660, .12, 'triangle', .09);
+      renderTrim();
+    });
+  });
+  const k = trimDrop.size;
+  el('trimInfo').innerHTML = k
+    ? '<b style="color:#f6dda1">' + k + '개</b>를 버리고 <b>이 숲에서 이어서</b> 다시 찾습니다 · 남은 걸음 ' +
+      '<b style="color:#f6dda1">' + steps + '보</b><br>' +
+      '판을 처음부터 다시 하는 것이 <b>아닙니다</b> — 지도·남은 상자·모은 조각은 그대로입니다.<br>' +
+      '남은 상자의 <b>숫자는 여전히 봉인</b>돼 있으니 다시 찾는 의미가 있습니다.<br>' +
+      '<span style="color:#ff9a8f">버린 상자는 다시 열 수 없습니다.</span>' +
+      (steps <= 0 ? '<br><span style="color:#ff9a8f">걸음이 없습니다 — 광고로 걸음을 채울 수 있습니다.</span>' : '')
+    : '확정하면 숲이 <b>다시 펼쳐지며</b> 45개 상자의 숫자를 <b>5초</b> 동안 보여줍니다 · ' +
+      '남은 걸음 <b style="color:#f6dda1">' + steps + '보</b>';
+  el('trimDropBtn').textContent = k
+    ? '🗑️ ' + k + '개 버리고 다시 찾기'
+    : '🗑️ 버릴 상자를 고르세요';
+  el('trimDropBtn').disabled = !k;
+  el('trimDropBtn').style.opacity = k ? 1 : .5;
+}
+function openTrim(){
+  if (finished) return;
+  trimDrop = new Set();
+  renderTrim();
+  openModal('trimModal');
+}
+function applyTrim(){
+  const list = takenNodes();
+  const drop = [...trimDrop].map(i => list[i]).filter(Boolean);
+  closeModal('trimModal');
+  if (!drop.length){ beginNumberReveal(); return; }
+  for (const nd of drop){
+    nd.taken = false;
+    nd.discarded = true;
+    const at = opened.indexOf(nd.num);
+    if (at >= 0) opened.splice(at, 1);
+  }
+  revealed = false; revealNums = false;
+  running  = true;
+  overview = false; freeLook = false;
+  targetVS = followScale();
+  el('mapBtn').classList.remove('on');
+  el('hud').classList.remove('free');
+  computePaths();
+  renderSlots(); updateHUD();
+  sfxSkip();
+  toast('🧺 <b>' + drop.length + '개</b>를 버렸다 · 버린 상자는 다시 열 수 없다 — ' +
+        '이 숲에서 <b>' + (GOAL - opened.length) + '개</b>를 더 찾는다');
+  checkStuck();
+}
+
+function checkStuck(){
+  if (finished || mover || revealed) return;
+  const ok = cur.adj.some(l => edgeCost(l.e) <= steps);
+  if (!ok){
+    running = false;
+    const goldLeft = nodes.filter(n => n.grade && n.grade.key === 'gold' && !n.opened).length;
+    el('failSub').innerHTML =
+      '걸음이 다했습니다. 상자는 <b style="color:#f6dda1">' + opened.length + ' / ' + GOAL + '</b>개를 열었습니다.' +
+      (goldLeft ? '<br>숲에 <b style="color:#f6dda1">⭐ 황금 상자 ' + goldLeft + '개</b>가 아직 남아 있습니다.' : '') +
+      '<br>광고를 보면 <b style="color:#f6dda1">별 +' + AD_STARS + ' · 걸음 +' + AD_STEPS +
+      '보</b>를 받아 이어서 갈 수 있습니다.<br>' +
+      '<span style="font-size:11.5px">바람에 맡기면 남은 ' + (GOAL - opened.length) +
+      '개를 아직 열지 않은 상자 중에서 무작위로 채웁니다.</span>';
+    const bk = bankedSteps();
+    const bb = el('bankBtn');
+    bb.style.display = bk > 0 ? '' : 'none';
+    bb.textContent = '👣 보유 걸음 ' + bk + '보 쓰기';
+    openModal('failModal');
+  }
+}
+
+function finish(byWind){
+  if (finished) return;
+  finished = true; running = false;
+  const elapsed = (performance.now() - startTime)/1000;
+  sfxDone();
+  const nums = opened.slice(0, GOAL).sort((a,b) => a-b);
+  const now = new Date();
+  const p2 = n => String(n).padStart(2,'0');
+  const date = now.getFullYear() + '-' + p2(now.getMonth()+1) + '-' + p2(now.getDate()) +
+               ' ' + p2(now.getHours()) + ':' + p2(now.getMinutes());
+  const round = nextRound(Date.now());
+  const issuedAt = Date.now();
+  lastResult = { main: nums, date, round, id: issueId(), issuedAt,
+                 checked:false, rank:0, hit:0, prize:0,
+                 buff: buff.name, em: buff.em,
+                 moves: moveCount, left: steps, sec: Math.round(elapsed), wind: !!byWind };
+  saveHistory(lastResult);
+
+  el('resultTitle').textContent = byWind ? '🍃 바람이 채워준 번호' : '🏆 번호 생성 완료!';
+  el('resultSub').innerHTML = byWind
+    ? '해는 저물었지만 숲의 바람이 나머지 숫자를 실어다 주었습니다.'
+    : '오솔길을 따라 상자 여섯을 모두 열었습니다.';
+  /* 업적 · 순위표 (Play 연동 지점) */
+  unlockAch('first_run');
+  if (moveCount >= 12) unlockAch('picky');
+  if (!byWind && steps <= 2) unlockAch('shoestring');
+  if (loadHistory().length >= 5) unlockAch('veteran');
+  bumpIssued();
+  Lotto.submitTicket(lastResult);
+  cloudSync();
+
+  el('resultBalls').innerHTML = nums.map(ballHTML).join('');
+  el('resultMeta').innerHTML =
+    '<b style="color:#8a7f66">제 ' + round + '회 응모</b> · 추첨 ' + fmtDate(drawTimeOf(round)) + '<br>' +
+    date + '<br>' +
+    [buff.em + ' ' + buff.name,
+     '이동 ' + moveCount + '회',
+     diceRolls ? '🎲 ' + diceRolls + '번' : '',
+     adSteps   ? '📺 걸음 +' + adSteps : '',
+     goldenMode ? '🗿 황금모드' : '',
+     '남은 걸음 ' + steps + '보',
+     fmtTime(elapsed)].filter(Boolean).join(' · ');
+  setTimeout(() => openModal('resultModal'), byWind ? 200 : 900);
+}
+
+function windFill(){
+  mover = null;                                   // 이동 중이었다면 즉시 중단
+  const rest = nodes.filter(n => n.chest && !n.opened);
+  while (opened.length < GOAL && rest.length){
+    const i = secRand(rest.length);
+    const n = rest.splice(i,1)[0];
+    n.opened = true; n.openT = performance.now(); n.wind = true; n.taken = true;
+    opened.push(n.num);
+    burst(n.x, n.y);
+  }
+  el('failModal').classList.remove('on');
+  renderSlots();
+  finish(true);
+}
+
+function burst(x, y){
+  for (let i=0; i<64; i++){
+    const a = rnd(0,6.2832), s = rnd(40,240);
+    parts.push({ x, y: y-8, vx:Math.cos(a)*s, vy:Math.sin(a)*s-120, life:1,
+                 max:rnd(.5,1.3), size:rnd(1.3,3.6),
+                 col:pick(['#ffe9a8','#e9c46a','#fff6d8','#f6b93b']) });
+  }
+}
+
+/* ---------- 입력 ---------- */
+function screenToWorld(sx, sy){
+  return { x: (sx - cssW/2)/vs + camX, y: (sy - cssH/2)/vs + camY };
+}
+function nodeAt(wx, wy){
+  let best = null, bd = 46/Math.max(vs,.35);
+  for (const n of nodes){
+    const d = dist(wx, wy, n.x, n.y);
+    if (d < bd){ bd = d; best = n; }
+  }
+  return best;
+}
+/* 탭 = 이동 · 한 손가락 끌기 = 지도 밀기 · 두 손가락 = 확대/축소 */
+const minVS = () => Math.min(fitScale(), followScale()) * 0.88;
+const maxVS = () => followScale() * 2.4;
+const ptrs = new Map();
+let gest = null;
+
+function clampCam(){
+  const hw = cssW/2/vs, hh = cssH/2/vs;
+  const mx = Math.max(hw, MAP.w/2), my = Math.max(hh, MAP.h/2);
+  camX = clamp(camX, MAP.w/2 - mx + hw*0.35, MAP.w/2 + mx - hw*0.35);
+  camY = clamp(camY, MAP.h/2 - my + hh*0.35, MAP.h/2 + my - hh*0.35);
+}
+function tapAt(sx, sy){
+  if (!running || finished || mover || revealed) return;
+  const w = screenToWorld(sx, sy);
+  const n = nodeAt(w.x, w.y);
+  if (!n) return;
+  travelTo(n);
+}
+function recenter(){
+  freeLook = false;
+  if (overview){ overview = false; el('mapBtn').classList.remove('on'); }
+  targetVS = followScale();
+  el('hud').classList.remove('free');
+}
+
+cv.addEventListener('pointerdown', e => {
+  /* 일부 인앱 웹뷰에서는 캡처가 실패할 수 있다 — 실패해도 제스처는 계속되게 */
+  try { cv.setPointerCapture(e.pointerId); } catch(err){}
+  ptrs.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if (ptrs.size === 1){
+    gest = { mode:'tap', id:e.pointerId, sx:e.clientX, sy:e.clientY, moved:0, t0:performance.now() };
+  } else if (ptrs.size === 2){
+    const [a,b] = [...ptrs.values()];
+    gest = { mode:'pinch', d0:Math.hypot(a.x-b.x, a.y-b.y) || 1, vs0:vs,
+             mx:(a.x+b.x)/2, my:(a.y+b.y)/2 };
+    freeLook = true; el('hud').classList.add('free');
+  }
+});
+cv.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId);
+  if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+
+  if (gest && gest.mode === 'pinch' && ptrs.size >= 2){
+    const [a,b] = [...ptrs.values()];
+    const d = Math.hypot(a.x-b.x, a.y-b.y) || 1;
+    const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+    const before = screenToWorld(mx, my);
+    vs = targetVS = clamp(gest.vs0 * (d / gest.d0), minVS(), maxVS());
+    const after = screenToWorld(mx, my);
+    camX += before.x - after.x;
+    camY += before.y - after.y;
+    /* 두 손가락을 함께 옮기면 지도도 따라 움직인다 */
+    camX -= (mx - gest.mx)/vs; camY -= (my - gest.my)/vs;
+    gest.mx = mx; gest.my = my;
+    clampCam();
+    return;
+  }
+  if (!gest || gest.id !== e.pointerId) return;
+  gest.moved += Math.hypot(dx, dy);
+  if (gest.mode === 'tap' && gest.moved > 12){
+    gest.mode = 'pan';
+    freeLook = true; el('hud').classList.add('free');
+  }
+  if (gest.mode === 'pan'){
+    camX -= dx/vs; camY -= dy/vs;
+    clampCam();
+  }
+});
+function endPtr(e){
+  const had = ptrs.get(e.pointerId);
+  ptrs.delete(e.pointerId);
+  if (!had) return;
+  if (gest && gest.mode === 'tap' && gest.id === e.pointerId &&
+      gest.moved <= 12 && performance.now() - gest.t0 < 700){
+    tapAt(e.clientX, e.clientY);
+  }
+  if (ptrs.size === 0) gest = null;
+  else if (ptrs.size === 1 && gest && gest.mode === 'pinch'){
+    const [a] = [...ptrs.entries()];
+    gest = { mode:'pan', id:a[0], sx:a[1].x, sy:a[1].y, moved:99, t0:performance.now() };
+  }
+}
+cv.addEventListener('pointerup', endPtr);
+cv.addEventListener('pointercancel', endPtr);
+/* 데스크톱 휠 확대/축소 */
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const before = screenToWorld(e.clientX, e.clientY);
+  vs = targetVS = clamp(vs * (e.deltaY < 0 ? 1.12 : 1/1.12), minVS(), maxVS());
+  const after = screenToWorld(e.clientX, e.clientY);
+  camX += before.x - after.x; camY += before.y - after.y;
+  freeLook = true; el('hud').classList.add('free');
+  clampCam();
+}, { passive:false });
+
+const DIRK = {
+  arrowleft:[-1,0], a:[-1,0], arrowright:[1,0], d:[1,0],
+  arrowup:[0,-1],   w:[0,-1], arrowdown:[0,1],  s:[0,1]
+};
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'm'){ toggleMap(); return; }
+  if (!DIRK[k]) return;
+  e.preventDefault();
+  if (!canTravel()) return;
+  const d = DIRK[k];
+  let best = null, bs = .35;
+  for (const l of cur.adj){
+    const dx = l.to.x - cur.x, dy = l.to.y - cur.y, m = Math.hypot(dx,dy) || 1;
+    const dot = (dx/m)*d[0] + (dy/m)*d[1];
+    if (dot > bs){ bs = dot; best = l; }
+  }
+  if (best) travelTo(best.to);
+  else toast('그 방향에는 오솔길이 없다');
+});
+
+function toggleMap(){
+  overview = !overview;
+  freeLook = false; el('hud').classList.remove('free');
+  targetVS = overview ? fitScale() : followScale();
+  el('mapBtn').classList.toggle('on', overview);
+}
+
+/* ---------- 업데이트 ---------- */
+function update(dt, time){
+  if (mover && !finished){
+    mover.t += dt / mover.dur;
+    if (mover.t >= 1) arrive(mover.to);
+    else {
+      const p = bez(mover.e, mover.from, mover.t);
+      playerPos.x = p.x; playerPos.y = p.y;
+    }
+  }
+  if (!gest || gest.mode === 'tap') vs = lerp(vs, targetVS, 1 - Math.pow(.002, dt));
+  if (!freeLook || overview){
+    const tx = overview ? MAP.w/2 : playerPos.x;
+    const ty = overview ? MAP.h/2 - (OV_TOP*0.5)/Math.max(vs,.05) : playerPos.y;
+    const k = 1 - Math.pow(.0025, dt);
+    camX = lerp(camX, tx, k);
+    camY = lerp(camY, ty, k);
+    if (!overview) clampCam();      // 가장자리에서 빈 숲만 보이지 않게
+  }
+
+  for (let i=parts.length-1; i>=0; i--){
+    const p = parts[i];
+    p.life -= dt/p.max;
+    if (p.life <= 0){ parts.splice(i,1); continue; }
+    p.vy += 190*dt; p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= .985;
+  }
+  /* 천사의 축복 — 반짝이가 주인공을 휘감는다 */
+  if (angel){
+    const at = (performance.now() - angel.t0) / ANGEL_MS;
+    if (at > .22 && at < .92){
+      for (let i=0; i<2; i++){
+        sparks.push({ a: rnd(0,6.2832), r: rnd(34,52), rise: 0, life: 1,
+                      max: rnd(.7,1.3), sp: rnd(2.4,4.6)*(Math.random()<.5?-1:1),
+                      size: rnd(1.2,3.1),
+                      col: pick(['#fff6d8','#ffe9a8','#e8dcff','#ffffff','#cdb4ff']) });
+      }
+    }
+  }
+  for (let i=sparks.length-1; i>=0; i--){
+    const sp = sparks[i];
+    sp.life -= dt/sp.max;
+    if (sp.life <= 0){ sparks.splice(i,1); continue; }
+    sp.a += sp.sp*dt; sp.r *= (1 - .42*dt); sp.rise += 36*dt;
+  }
+  for (const f of flies){
+    f.a += rnd(-1.7,1.7)*dt;
+    f.x = clamp(f.x + Math.cos(f.a)*f.sp*dt, -60, MAP.w+60);
+    f.y = clamp(f.y + Math.sin(f.a)*f.sp*dt, -60, MAP.h+60);
+    f.ph += dt*2.3;
+  }
+}
+
+/* ---------- 배경 타일 ---------- */
+function makeGround(){
+  const s = 512;
+  const c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d');
+  g.fillStyle = '#1a3a26'; g.fillRect(0,0,s,s);
+  for (let i=0; i<800; i++){
+    g.fillStyle = pick(['rgba(35,74,47,.55)','rgba(21,45,30,.6)','rgba(44,88,57,.35)','rgba(28,58,38,.5)']);
+    g.beginPath();
+    g.ellipse(Math.random()*s, Math.random()*s, rnd(7,34), rnd(5,24), Math.random()*6.28, 0, 6.2832);
+    g.fill();
+  }
+  for (let i=0; i<420; i++){
+    const x = Math.random()*s, y = Math.random()*s, a = Math.random()*6.28, l = rnd(4,13);
+    g.strokeStyle = pick(['rgba(92,74,46,.30)','rgba(66,88,54,.32)','rgba(50,40,28,.28)']);
+    g.lineWidth = rnd(.7,1.9);
+    g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(a)*l, y+Math.sin(a)*l); g.stroke();
+  }
+  groundPattern = ctx.createPattern(c, 'repeat');
+}
+
+/* ---------- 그리기 유틸 ---------- */
+const TREE_TONES = [
+  ['#1f5436','#2a6c44','#327f4f'], ['#1c4a33','#256040','#2d764c'],
+  ['#23552f','#2d7042','#37854f'], ['#1a4530','#22593a','#2a6c47']
+];
+function shadowE(x,y,rx,ry,a){
+  ctx.fillStyle = 'rgba(0,0,0,' + (a||.26) + ')';
+  ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,6.2832); ctx.fill();
+}
+function drawDeco(o, time){
+  if (o.t === 'tree'){
+    const sway = Math.sin(time*.00085 + o.seed) * (o.r/17);
+    shadowE(o.x, o.y, o.r*.6, o.r*.19, .3);
+    const tw = o.r*.16;
+    ctx.fillStyle = '#3b2b1d';
+    ctx.beginPath();
+    ctx.moveTo(o.x-tw, o.y); ctx.lineTo(o.x+tw, o.y);
+    ctx.lineTo(o.x+tw*.5+sway*.4, o.y-o.th); ctx.lineTo(o.x-tw*.5+sway*.4, o.y-o.th);
+    ctx.closePath(); ctx.fill();
+    const tone = TREE_TONES[o.tone], cx = o.x+sway, cy = o.y-o.th;
+    for (let i=0; i<o.lobes; i++){
+      const a = (i/o.lobes)*6.2832 + o.seed;
+      const rr = o.r * (.55 + .27*Math.sin(o.seed + i*2.1));
+      ctx.fillStyle = tone[i%3];
+      ctx.beginPath();
+      ctx.ellipse(cx + Math.cos(a)*o.r*.45, cy + Math.sin(a)*o.r*.29 - o.r*.17, rr, rr*.85, 0, 0, 6.2832);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(160,225,170,.12)';
+    ctx.beginPath(); ctx.ellipse(cx-o.r*.24, cy-o.r*.42, o.r*.38, o.r*.26, -.4, 0, 6.2832); ctx.fill();
+  } else if (o.t === 'bush'){
+    const s = Math.sin(time*.0012 + o.seed)*1.3;
+    shadowE(o.x, o.y, o.r*.85, o.r*.22, .2);
+    ['#215739','#2a6a42','#31794d'].forEach((c,i) => {
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.ellipse(o.x + (i-1)*o.r*.45 + s, o.y - o.r*.4 - i*2, o.r*.6, o.r*.48, 0, 0, 6.2832);
+      ctx.fill();
+    });
+  } else if (o.t === 'grass'){
+    const s = Math.sin(time*.0016 + o.seed)*2.1;
+    ctx.strokeStyle = 'rgba(90,152,98,.6)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let i=-1; i<=1; i++){
+      ctx.moveTo(o.x+i*3, o.y);
+      ctx.quadraticCurveTo(o.x+i*3+s*.5, o.y-o.h*.6, o.x+i*3+s+i*2, o.y-o.h);
+    }
+    ctx.stroke();
+  } else if (o.t === 'flower'){
+    const s = Math.sin(time*.0014 + o.seed)*1.5;
+    ctx.strokeStyle = 'rgba(80,132,84,.6)'; ctx.lineWidth = 1.1;
+    ctx.beginPath(); ctx.moveTo(o.x,o.y); ctx.lineTo(o.x+s, o.y-8); ctx.stroke();
+    ctx.fillStyle = o.c;
+    ctx.beginPath(); ctx.arc(o.x+s, o.y-10, 2.4, 0, 6.2832); ctx.fill();
+  } else {
+    shadowE(o.x, o.y, o.r*.9, o.r*.3, .22);
+    ctx.fillStyle = '#4e5653';
+    ctx.beginPath(); ctx.ellipse(o.x, o.y-o.r*.3, o.r, o.r*.72, 0, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.10)';
+    ctx.beginPath(); ctx.ellipse(o.x-o.r*.25, o.y-o.r*.55, o.r*.4, o.r*.26, -.4, 0, 6.2832); ctx.fill();
+  }
+}
+
+function edgePath(e){
+  ctx.beginPath();
+  ctx.moveTo(e.a.x, e.a.y);
+  ctx.quadraticCurveTo(e.cx, e.cy, e.b.x, e.b.y);
+}
+function drawTrails(time){
+  /* 흙길 바탕 */
+  ctx.lineCap = 'round';
+  for (const e of edges){
+    edgePath(e);
+    ctx.strokeStyle = 'rgba(52,40,26,.85)'; ctx.lineWidth = 15; ctx.stroke();
+    edgePath(e);
+    ctx.strokeStyle = 'rgba(94,76,50,.9)'; ctx.lineWidth = 9; ctx.stroke();
+  }
+  /* 지나온 길 — 빛나는 선 */
+  ctx.save();
+  ctx.shadowBlur = 14; ctx.shadowColor = 'rgba(233,196,106,.9)';
+  for (const e of edges){
+    if (!e.visited) continue;
+    edgePath(e);
+    ctx.strokeStyle = 'rgba(246,221,161,.95)'; ctx.lineWidth = 6; ctx.stroke();
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.setLineDash([5, 13]); ctx.lineDashOffset = -time*.05;
+  for (const e of edges){
+    if (!e.visited) continue;
+    edgePath(e);
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 2.4; ctx.stroke();
+  }
+  ctx.restore();
+
+  /* 현재 위치에서 갈 수 있는 길 강조 */
+  if (!cur) return;
+  const pulse = .5 + .5*Math.sin(time*.005);
+  for (const l of cur.adj){
+    const ok = edgeCost(l.e) <= steps;
+    ctx.save();
+    ctx.setLineDash([9, 9]); ctx.lineDashOffset = -time*.06;
+    ctx.strokeStyle = ok ? 'rgba(255,255,255,' + (.35+pulse*.45) + ')' : 'rgba(255,120,90,.45)';
+    ctx.lineWidth = ok ? 3.4 : 2.4;
+    edgePath(l.e); ctx.stroke();
+    ctx.restore();
+
+  }
+}
+
+
+/* 주사위 눈을 상자 뚜껑 위에 찍는다 */
+const PIPS = {
+  1:[[0,0]], 2:[[-1,-1],[1,1]], 3:[[-1,-1],[0,0],[1,1]],
+  4:[[-1,-1],[1,-1],[-1,1],[1,1]], 5:[[-1,-1],[1,-1],[0,0],[-1,1],[1,1]],
+  6:[[-1,-1],[1,-1],[-1,0],[1,0],[-1,1],[1,1]]
+};
+function drawDie(x, y, size, v, dark){
+  const r = size/2;
+  ctx.fillStyle = '#fdfbf4';
+  ctx.beginPath(); ctx.roundRect(x-r, y-r, size, size, size*0.22); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = size*0.05; ctx.stroke();
+  ctx.fillStyle = dark ? '#8d93a5' : '#2a2c3a';
+  for (const [px,py] of (PIPS[v] || PIPS[1])){
+    ctx.beginPath();
+    ctx.arc(x + px*size*0.26, y + py*size*0.26, size*0.095, 0, 6.2832);
+    ctx.fill();
+  }
+}
+
+/* 지금 위치에서 이 상자까지 몇 보인지 — 멀리 있는 상자도 눌러서 갈 수 있다 */
+function drawReach(n, time){
+  if (angel) return;
+  if (revealed || finished) return;
+  if (!paths || n === cur || vs <= .3) return;
+  const d = reachCost(n);
+  if (d === undefined || d === Infinity || d > steps) return;
+  const z = clamp(1/vs, 1, 2.2);
+  const txt = d + '보';
+  ctx.font = '900 ' + (11*z).toFixed(1) + 'px system-ui,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(txt).width + 14*z;
+  const y = n.y - 40*z;
+  ctx.fillStyle = 'rgba(10,22,14,.88)';
+  ctx.beginPath(); ctx.roundRect(n.x - w/2, y - 9*z, w, 18*z, 9*z); ctx.fill();
+  ctx.strokeStyle = 'rgba(233,196,106,.55)'; ctx.lineWidth = 1.1*z; ctx.stroke();
+  ctx.fillStyle = '#f6dda1';
+  ctx.fillText(txt, n.x, y);
+}
+
+function drawNode(n, time){
+  const isCur = n === cur;
+  if (!n.opened && !n.used) drawReach(n, time);
+  if (n.dice){
+    const z = clamp(1/vs, 1, 1.8);
+    const live = !n.used;
+    const pu = .5 + .5*Math.sin(time*.0045 + n.bob);
+    const bob = live ? Math.sin(time*.0026 + n.bob)*2.6 : 0;
+    const y = n.y + bob;
+    shadowE(n.x, n.y+3, 19*z, 6.5*z, .3);
+    if (live){
+      const g = ctx.createRadialGradient(n.x, y-12*z, 3, n.x, y-12*z, 58*z);
+      g.addColorStop(0, 'rgba(178,140,255,' + (.26 + pu*.22) + ')');
+      g.addColorStop(1, 'rgba(178,140,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(n.x, y-12*z, 58*z, 0, 6.2832); ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(n.x, y); ctx.scale(z, z);
+    if (!live) ctx.globalAlpha = .5;
+    ctx.fillStyle = live ? '#48376b' : '#3a3348';
+    ctx.beginPath(); ctx.roundRect(-17, -17, 34, 18, 3); ctx.fill();
+    ctx.fillStyle = live ? '#5b4785' : '#453d55';
+    ctx.beginPath(); ctx.roundRect(-17, -26, 34, 12, 4); ctx.fill();
+    ctx.fillStyle = live ? '#cdb4ff' : '#7b7290';
+    ctx.fillRect(-17, -16, 34, 3);
+    ctx.fillRect(-2.5, -26, 5, 25);
+    ctx.restore();
+    /* 뚜껑 위에 떠 있는 주사위 (사용 후에는 나온 눈을 남긴다) */
+    ctx.save();
+    if (!live) ctx.globalAlpha = .62;
+    drawDie(n.x, y - (live ? 38 + pu*4 : 34)*z, (live ? 21 : 18)*z, live ? ((Math.floor(time/140) % 6) + 1) : n.roll, !live);
+    ctx.restore();
+    if (!live){
+      ctx.fillStyle = 'rgba(205,180,255,.7)';
+      ctx.font = '800 ' + (9*z).toFixed(1) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('굴렸다', n.x, y + 14*z);
+    }
+    if (live && Math.random() < .1){
+      parts.push({ x: n.x + rnd(-18,18), y: y - rnd(0,32), vx: rnd(-8,8), vy: rnd(-24,-8),
+                   life:1, max:rnd(.5,1.1), size:rnd(1,2.2), col:'#cdb4ff' });
+    }
+    if (cur && cur.adj.some(l => l.to === n) && vs > .3 && live){
+      const zz = clamp(1/vs, 1, 2.2);
+      const txt = '🎲 주사위 상자';
+      ctx.font = '800 ' + (11*zz).toFixed(1) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const w = ctx.measureText(txt).width + 16*zz;
+      ctx.fillStyle = 'rgba(8,18,12,.92)';
+      ctx.beginPath(); ctx.roundRect(n.x - w/2, y+4*zz, w, 17*zz, 8*zz); ctx.fill();
+      ctx.strokeStyle = '#cdb4ff'; ctx.lineWidth = 1.1*zz; ctx.stroke();
+      ctx.fillStyle = '#cdb4ff';
+      ctx.fillText(txt, n.x, y + 12.5*zz);
+    }
+  } else if (!n.chest){
+    /* 숲 입구 표지판 */
+    shadowE(n.x, n.y, 20, 7, .3);
+    const z = clamp(1/vs, 1, 2.2);
+    ctx.fillStyle = '#5b4126'; ctx.fillRect(n.x-2.5, n.y-26, 5, 26);
+    ctx.fillStyle = '#7a5730';
+    ctx.beginPath(); ctx.roundRect(n.x-26*z, n.y-42*z-4, 52*z, 20*z, 5*z); ctx.fill();
+    ctx.fillStyle = '#f6dda1'; ctx.font = '900 ' + (11*z).toFixed(1) + 'px system-ui,sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('숲 입구', n.x, n.y-32*z-4);
+  } else if (!n.opened && !revealNums && !finished){
+    const g = n.grade || GRADES.low;
+    const isGold  = g.key === 'gold';
+    const isAngel = g.key === 'angel';
+    const bob = Math.sin(time*.0022 + n.bob) * (isGold || isAngel ? 2.6 : 1.6);
+    const y = n.y + bob;
+    shadowE(n.x, n.y+3, 19, 6.5, .3);
+    /* 자리 공개 중에는 숲 전체가 작게 보이므로 상자도 함께 키운다 */
+    const mz = revealed ? clamp((11/vs)/19, 1, 5) : 1;
+    ctx.save();
+    if (mz > 1){ ctx.translate(n.x, y); ctx.scale(mz, mz); ctx.translate(-n.x, -y); }
+
+    /* 황금 상자는 멀리서도 보이게 광채를 두른다 */
+    if (isGold){
+      const pu = .55 + .45*Math.sin(time*.004 + n.bob);
+      const gg = ctx.createRadialGradient(n.x, y-12, 3, n.x, y-12, 56);
+      gg.addColorStop(0, 'rgba(255,214,110,' + (.30 + pu*.22) + ')');
+      gg.addColorStop(1, 'rgba(255,214,110,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(n.x, y-12, 56, 0, 6.2832); ctx.fill();
+    }
+    /* 초특급 행운상자 — 흰빛 광채만 두른다. 천사는 상자를 얻는 순간에만 나타난다 */
+    if (isAngel){
+      const pu = .55 + .45*Math.sin(time*.0035 + n.bob);
+      const gg = ctx.createRadialGradient(n.x, y-14, 3, n.x, y-14, 70);
+      gg.addColorStop(0, 'rgba(255,252,232,' + (.38 + pu*.24) + ')');
+      gg.addColorStop(.5, 'rgba(226,214,255,' + (.16 + pu*.12) + ')');
+      gg.addColorStop(1, 'rgba(226,214,255,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(n.x, y-14, 70, 0, 6.2832); ctx.fill();
+      if (Math.random() < .2){
+        parts.push({ x: n.x + rnd(-24,24), y: y - rnd(0,34), vx: rnd(-8,8), vy: rnd(-30,-10),
+                     life:1, max:rnd(.6,1.3), size:rnd(1,2.4),
+                     col: pick(['#fff6d8','#ffffff','#e8dcff']) });
+      }
+    }
+    ctx.fillStyle = g.body;
+    ctx.beginPath(); ctx.roundRect(n.x-17, y-17, 34, 18, 3); ctx.fill();
+    ctx.fillStyle = g.lid;
+    ctx.beginPath(); ctx.roundRect(n.x-17, y-26, 34, 12, 4); ctx.fill();
+    ctx.fillStyle = g.trim;
+    ctx.fillRect(n.x-17, y-16, 34, 3);
+    ctx.fillRect(n.x-2.5, y-26, 5, 25);
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    ctx.beginPath(); ctx.roundRect(n.x-14, y-24, 12, 5, 2); ctx.fill();
+    /* 등급 표식: 뚜껑 위 보석 개수 */
+    for (let i=0; i<g.gems; i++){
+      ctx.fillStyle = g.trim;
+      ctx.beginPath();
+      ctx.arc(n.x - (g.gems-1)*4.5 + i*9, y-30.5, isGold ? 2.6 : 2.1, 0, 6.2832);
+      ctx.fill();
+    }
+    if (isAngel){                       /* 뚜껑 위 별 하나 */
+      sparkleStar(n.x, y-31, 5 + Math.sin(time*.005)*1.2, '#fff6cf');
+    }
+    ctx.restore();
+    /* 자리 공개 — 천사와 행운의 상자가 어디에 있었는지 이름표로 못박는다 */
+    if (revealed){
+      if (isAngel) drawAngel(n.x + 34*mz, n.y - 6*mz, mz*.62, time, .95, Math.sin(time*.0035)*.35);
+      if (isAngel || isGold){
+        ctx.fillStyle = isAngel ? '#fff6cf' : '#ffe9a8';
+        ctx.font = '800 ' + (9*mz).toFixed(1) + 'px system-ui,sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(isAngel ? '✦ 초특급 행운상자' : '⭐ 행운의 상자', n.x, n.y + 22*mz);
+      }
+    }
+    if (isGold && Math.random() < .12){
+      parts.push({ x: n.x + rnd(-20,20), y: y - rnd(0,30), vx: rnd(-8,8), vy: rnd(-26,-8),
+                   life:1, max:rnd(.5,1.1), size:rnd(1,2.3), col:'#fff0b8' });
+    }
+    /* 인접한 상자에는 등급(+나침반 버프면 번호 구간)을 글자로 알려준다 */
+    /* 숫자에 대한 힌트는 어떤 것도 보여주지 않는다.
+       등급 글자는 나침반 버프에서만 — 다른 대답은 색으로만 판단한다. */
+    if (cur && buff.key === 'normal' && cur.adj.some(l => l.to === n) && vs > .3){
+      const z = clamp(1/vs, 1, 2.2);
+      const txt = g.name;
+      ctx.font = '800 ' + (11*z).toFixed(1) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const w = ctx.measureText(txt).width + 16*z;
+      ctx.fillStyle = 'rgba(8,18,12,.92)';
+      ctx.beginPath(); ctx.roundRect(n.x - w/2, y+4*z, w, 17*z, 8*z); ctx.fill();
+      ctx.strokeStyle = g.trim; ctx.lineWidth = 1.1*z; ctx.stroke();
+      ctx.fillStyle = g.trim;
+      ctx.fillText(txt, n.x, y + 12.5*z);
+    }
+  } else {
+    const age = (performance.now() - (n.openT||0))/1000;
+    const sc  = n.opened ? clamp(age/.35, 0, 1) : 1;
+    const mine = !!n.taken;                       /* 내가 담은 여섯 */
+    const bob = mine ? Math.sin(time*.003 + n.bob)*2.4 : 0;
+    const st  = ballStyle(n.num);
+    shadowE(n.x, n.y+4, 16, 5.5, .3);
+    /* 전체 지도에서 45개를 한눈에 읽을 수 있도록 공개 때는 크게 그린다 */
+    const z = revealed ? clamp((11/vs)/19, 1, 5) : clamp(1/vs, 1, 1.7);
+    ctx.save();
+    ctx.translate(n.x, n.y - 12*z + bob);
+    ctx.scale((.4 + sc*.6)*z, (.4 + sc*.6)*z);
+    if (!mine) ctx.globalAlpha = .5;
+    const halo = mine ? .42 : 0;
+    if (halo > 0){
+      const rr = 34;
+      const g = ctx.createRadialGradient(0,0,2,0,0,rr);
+      g.addColorStop(0, 'rgba(255,238,180,' + halo + ')');
+      g.addColorStop(1, 'rgba(255,238,180,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0,0,rr,0,6.2832); ctx.fill();
+    }
+    /* 여섯을 채우기 전에는 숫자를 감춘 봉인 구슬로만 보인다 */
+    const show = revealNums || finished;
+    ctx.fillStyle = show ? st.bg : '#c8a24a';
+    ctx.beginPath(); ctx.arc(0,0,19,0,6.2832); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.36)';
+    ctx.beginPath(); ctx.ellipse(-6,-7,6.5,4.2,-.5,0,6.2832); ctx.fill();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (show){
+      ctx.fillStyle = st.dark ? '#2b2210' : '#fff';
+      ctx.font = '900 18px system-ui,sans-serif';
+      ctx.fillText(String(n.num), 0, 1);
+    } else {
+      ctx.fillStyle = 'rgba(60,44,14,.85)';   /* 봉인 표식 */
+      ctx.beginPath(); ctx.roundRect(-6, -3, 12, 9, 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(60,44,14,.85)'; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(0, -3, 4, Math.PI, 0); ctx.stroke();
+    }
+    if (n.wind){
+      ctx.fillStyle = '#bfe6c6'; ctx.font = '800 9px system-ui,sans-serif';
+      ctx.fillText('바람', 0, 28);
+    }
+    if (n.discarded){
+      ctx.fillStyle = '#ff9a8f'; ctx.font = '800 9px system-ui,sans-serif';
+      ctx.fillText('버림', 0, 28);
+    }
+    ctx.restore();
+    /* 이 상자에서 토템 조각이 나왔다면 공개 때 그 자리에 남긴다 */
+    if (n.totem !== undefined && (revealed || finished)){
+      const z2 = revealed ? clamp((11/vs)/19, 1, 5) : clamp(1/vs, 1, 1.8);
+      const tx = n.x, ty = n.y - 58*z2;
+      const pc = TOTEM_PARTS[n.totem];
+      ctx.save();
+      const gg = ctx.createRadialGradient(tx, ty, 2, tx, ty, 26*z2);
+      gg.addColorStop(0, 'rgba(205,180,255,.45)'); gg.addColorStop(1, 'rgba(205,180,255,0)');
+      ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(tx, ty, 26*z2, 0, 6.2832); ctx.fill();
+      /* 작은 토템 — 세 칸 위로 쌓고 꼭대기에 관 */
+      for (let k = 0; k < 3; k++){
+        const w = (17 - k*2.5)*z2, h = 7*z2, yy = ty + 6*z2 - k*(h+1.5*z2);
+        ctx.fillStyle = k === 2 ? pc.c : (k ? '#5b4785' : '#48376b');
+        ctx.beginPath(); ctx.roundRect(tx - w/2, yy - h, w, h, 1.6*z2); ctx.fill();
+      }
+      ctx.fillStyle = '#fff0b8';
+      ctx.beginPath();
+      ctx.moveTo(tx - 5*z2, ty - 15*z2); ctx.lineTo(tx, ty - 21*z2);
+      ctx.lineTo(tx + 5*z2, ty - 15*z2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#cdb4ff';
+      ctx.font = '800 ' + (9.5*z2).toFixed(1) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🗿 ' + pc.n, tx, ty + 16*z2);
+      ctx.restore();
+    }
+    /* 초특급 행운상자였던 자리 — 공개 때 천사가 다시 선다 */
+    if (n.grade && n.grade.key === 'angel' && (revealed || finished)){
+      const z3 = revealed ? clamp((11/vs)/19, 1, 5) : clamp(1/vs, 1, 1.8);
+      drawAngel(n.x + 34*z3, n.y - 6*z3, z3*.62, time, .95,
+                Math.sin(time*.0035)*.35);
+      ctx.save();
+      ctx.fillStyle = '#fff6cf';
+      ctx.font = '800 ' + (9*z3).toFixed(1) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('✦ 초특급', n.x, n.y + 22*z3);
+      ctx.restore();
+    }
+    if (mine && (revealed || finished)){   /* 내가 담은 여섯은 테두리로 구분 */
+      const pu = .5 + .5*Math.sin(time*.009);
+      const zr = revealed ? clamp((11/vs)/19, 1, 5) : 1;
+      ctx.strokeStyle = 'rgba(246,221,161,' + (.55+pu*.4) + ')';
+      ctx.lineWidth = 3 * zr;
+      ctx.beginPath(); ctx.arc(n.x, n.y-12*zr, (23+pu*4)*zr, 0, 6.2832); ctx.stroke();
+    }
+  }
+  if (isCur){
+    const p = .5 + .5*Math.sin(time*.006);
+    ctx.strokeStyle = 'rgba(246,221,161,' + (.45+p*.5) + ')';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.ellipse(n.x, n.y+4, 30+p*5, 13+p*2.5, 0, 0, 6.2832); ctx.stroke();
+  } else if (cur && cur.adj.some(l => l.to === n) && edgeCost(cur.adj.find(l => l.to === n).e) <= steps){
+    const p = .5 + .5*Math.sin(time*.005 + n.bob);
+    ctx.strokeStyle = 'rgba(255,255,255,' + (.22+p*.3) + ')';
+    ctx.lineWidth = 1.8; ctx.setLineDash([4,5]);
+    ctx.beginPath(); ctx.ellipse(n.x, n.y+4, 26, 11, 0, 0, 6.2832); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+/* ---------- 천사 ----------
+   후광 · 날개 · 지팡이. 초특급 행운상자를 열 때, 그리고 마지막 전체 공개
+   화면에서 그 상자 자리 위에 다시 나타난다. */
+function sparkleStar(cx, cy, r, col){
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-r);
+  ctx.quadraticCurveTo(cx+r*.20, cy-r*.20, cx+r, cy);
+  ctx.quadraticCurveTo(cx+r*.20, cy+r*.20, cx, cy+r);
+  ctx.quadraticCurveTo(cx-r*.20, cy+r*.20, cx-r, cy);
+  ctx.quadraticCurveTo(cx-r*.20, cy-r*.20, cx, cy-r);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawAngel(x, y, s, time, alpha, swing){
+  ctx.save();
+  ctx.globalAlpha = clamp(alpha, 0, 1);
+  ctx.translate(x, y + Math.sin(time*.0021)*4*s);
+  ctx.scale(s, s);
+
+  /* 성스러운 빛 */
+  const g = ctx.createRadialGradient(0,-30,4,0,-30,80);
+  g.addColorStop(0,'rgba(255,250,222,.55)');
+  g.addColorStop(.45,'rgba(255,236,170,.20)');
+  g.addColorStop(1,'rgba(255,236,170,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,-30,80,0,6.2832); ctx.fill();
+
+  /* 날개 — 천천히 펄럭인다 */
+  const flap = Math.sin(time*.0045);
+  for (const d of [-1, 1]){
+    ctx.save(); ctx.scale(d, 1);
+    ctx.fillStyle = 'rgba(255,253,244,.94)';
+    ctx.beginPath();
+    ctx.moveTo(5,-40);
+    ctx.quadraticCurveTo(30, -62 - flap*9, 42, -26 + flap*7);
+    ctx.quadraticCurveTo(24, -26, 7, -18);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(214,201,255,.75)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.strokeStyle = 'rgba(214,201,255,.5)'; ctx.lineWidth = .9;
+    for (let k=1; k<=3; k++){
+      ctx.beginPath(); ctx.moveTo(6,-36+k*5);
+      ctx.quadraticCurveTo(20,-40+k*4-flap*5, 30-k*4,-27+k*2+flap*5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* 옷자락 */
+  ctx.fillStyle = '#fbf8ff';
+  ctx.beginPath();
+  ctx.moveTo(-9,-42); ctx.lineTo(9,-42);
+  ctx.quadraticCurveTo(17,-8, 13,4);
+  ctx.quadraticCurveTo(0,9, -13,4);
+  ctx.quadraticCurveTo(-17,-8, -9,-42);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(224,214,255,.55)';
+  ctx.beginPath();
+  ctx.moveTo(-11,-24); ctx.quadraticCurveTo(0,-19, 11,-24);
+  ctx.quadraticCurveTo(0,-14, -11,-24); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f0d68a';                       /* 금빛 띠 */
+  ctx.beginPath(); ctx.roundRect(-11,-31,22,3.4,2); ctx.fill();
+
+  /* 얼굴 */
+  ctx.fillStyle = '#ffe7c9';
+  ctx.beginPath(); ctx.arc(0,-51,8.6,0,6.2832); ctx.fill();
+  ctx.fillStyle = '#f6e2a8';
+  ctx.beginPath(); ctx.ellipse(0,-56,9.2,5.6,0,Math.PI,0); ctx.fill();
+  ctx.fillStyle = 'rgba(60,48,30,.7)';
+  ctx.beginPath(); ctx.arc(-3,-50.5,1.05,0,6.2832); ctx.fill();
+  ctx.beginPath(); ctx.arc(3,-50.5,1.05,0,6.2832); ctx.fill();
+
+  /* 후광 고리 */
+  const hp = .6 + .4*Math.sin(time*.004);
+  ctx.strokeStyle = 'rgba(255,235,150,' + (.55 + hp*.4) + ')';
+  ctx.lineWidth = 2.8;
+  ctx.beginPath(); ctx.ellipse(0,-64,10.8,3.5,0,0,6.2832); ctx.stroke();
+
+  /* 지팡이 — 축복을 내릴 때 크게 휘두른다 */
+  ctx.save();
+  ctx.translate(11,-38);
+  ctx.rotate(-.45 + (swing||0));
+  ctx.strokeStyle = '#d9c58c'; ctx.lineWidth = 2.8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0,12); ctx.lineTo(0,-24); ctx.stroke();
+  const sg = ctx.createRadialGradient(0,-28,1,0,-28,20);
+  sg.addColorStop(0,'rgba(255,248,206,.85)'); sg.addColorStop(1,'rgba(255,240,180,0)');
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(0,-28,20,0,6.2832); ctx.fill();
+  sparkleStar(0,-28, 9 + hp*2.5, '#fff6cf');
+  sparkleStar(0,-28, 4.5, '#ffffff');
+  ctx.restore();
+
+  /* 팔 */
+  ctx.strokeStyle = '#ffe7c9'; ctx.lineWidth = 3.2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(6,-38); ctx.lineTo(11,-33); ctx.stroke();
+  ctx.restore();
+}
+
+/* 상자를 연 순간의 천사 연출 — 내려왔다가 축복을 주고 올라간다 */
+function drawAngelScene(time){
+  if (!angel) return;
+  const t  = clamp((performance.now() - angel.t0) / ANGEL_MS, 0, 1);
+  const nd = angel.node;
+  const z  = clamp(1/vs, 1, 1.7);
+  const dx = (nd.x > MAP.w/2 ? -58 : 58) * z;
+  /* 강림 → 축복 → 승천 */
+  const drop = t < .22 ? Math.pow(1 - t/.22, 2) : 0;
+  const rise = t > .84 ? Math.pow((t-.84)/.16, 2) : 0;
+  const a    = t < .16 ? t/.16 : (t > .86 ? 1 - (t-.86)/.14 : 1);
+  const swing = (t > .28 && t < .74) ? Math.sin((t-.28)/.46 * Math.PI * 3) * .55 : 0;
+  const ax = nd.x + dx, ay = nd.y - 26*z - (drop + rise) * 200 * z;
+  /* 지팡이에서 주인공에게 흐르는 빛줄기 */
+  if (t > .28 && t < .84){
+    ctx.save();
+    ctx.globalAlpha = .35 * clamp(a,0,1);
+    const bg = ctx.createLinearGradient(ax, ay - 60*z, playerPos.x, playerPos.y - 20);
+    bg.addColorStop(0, 'rgba(255,246,200,.9)');
+    bg.addColorStop(1, 'rgba(255,246,200,0)');
+    ctx.strokeStyle = bg; ctx.lineWidth = 9*z; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ax, ay - 60*z);
+    ctx.quadraticCurveTo((ax + playerPos.x)/2, ay - 90*z, playerPos.x, playerPos.y - 22);
+    ctx.stroke();
+    ctx.restore();
+  }
+  drawAngel(ax, ay, z, time, a, swing);
+}
+
+function drawPlayer(time){
+  const x = playerPos.x, y = playerPos.y;
+  const walking = !!mover;
+  const ph = time*.012;
+  const step = walking ? Math.sin(ph)*1 : 0;
+  const bob  = walking ? Math.abs(Math.sin(ph))*2 : Math.sin(time*.0022)*1;
+  let dir = 1;
+  if (mover){ const p2 = mover.to; dir = p2.x >= mover.from.x ? 1 : -1; }
+  const pg = ctx.createRadialGradient(x, y-10, 3, x, y-10, 46);
+  pg.addColorStop(0, 'rgba(255,226,150,.22)'); pg.addColorStop(1, 'rgba(255,226,150,0)');
+  ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(x, y-10, 46, 0, 6.2832); ctx.fill();
+  shadowE(x, y+2, 12, 4.5, .35);
+  ctx.save();
+  ctx.translate(x, y - bob); ctx.scale(dir, 1);
+  ctx.fillStyle = '#33291f';
+  ctx.fillRect(-5.5, -8, 4.2, 8 + step*2.2);
+  ctx.fillRect(1.4, -8, 4.2, 8 - step*2.2);
+  ctx.fillStyle = '#2e6b4a';
+  ctx.beginPath(); ctx.moveTo(-8,-9); ctx.lineTo(8,-9); ctx.lineTo(6,-27); ctx.lineTo(-6,-27);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#265c3f';
+  ctx.beginPath(); ctx.ellipse(0,-18,8.6,10,0,0,6.2832); ctx.fill();
+  ctx.fillStyle = '#6b4a2a';
+  ctx.beginPath(); ctx.roundRect(-10,-22,5.5,8,2); ctx.fill();
+  ctx.fillStyle = '#e8c9a0';
+  ctx.beginPath(); ctx.arc(1,-32,6.6,0,6.2832); ctx.fill();
+  ctx.fillStyle = '#7a5230';
+  ctx.beginPath(); ctx.ellipse(1,-35.6,11,3.1,0,0,6.2832); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(1,-38.8,5.9,5,0,Math.PI,0); ctx.fill();
+  ctx.fillStyle = '#2b2118';
+  ctx.beginPath(); ctx.arc(4,-31.7,1.05,0,6.2832); ctx.fill();
+  /* 랜턴 */
+  const lx = 11, ly = -20 + Math.sin(time*.004)*1.5;
+  ctx.strokeStyle = '#4a3826'; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(6.5,-23); ctx.lineTo(lx, ly-5); ctx.stroke();
+  const lg = ctx.createRadialGradient(lx,ly,1,lx,ly,22);
+  lg.addColorStop(0,'rgba(255,214,130,.8)'); lg.addColorStop(1,'rgba(255,214,130,0)');
+  ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(lx,ly,22,0,6.2832); ctx.fill();
+  ctx.fillStyle = '#ffd98a';
+  ctx.beginPath(); ctx.roundRect(lx-3.2, ly-4.4, 6.4, 8.6, 2); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- 메인 렌더 ---------- */
+function render(time){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.translate(cssW/2, cssH/2);
+  ctx.scale(vs, vs);
+  ctx.translate(-camX, -camY);
+
+  const halfW = cssW/2/vs, halfH = cssH/2/vs;
+  const L = camX-halfW-80, R = camX+halfW+80, T = camY-halfH-200, B = camY+halfH+120;
+  const vis = o => o.x > L && o.x < R && o.y > T && o.y < B;
+
+  ctx.fillStyle = '#12291b';
+  ctx.fillRect(L-200, T-200, (R-L)+400, (B-T)+400);
+  ctx.fillStyle = groundPattern || '#1a3a26';
+  ctx.fillRect(L-200, T-200, (R-L)+400, (B-T)+400);
+
+  drawTrails(time);
+
+  /* deco + 노드 + 플레이어 y정렬 병합 */
+  const ents = nodes.filter(vis).map(n => ({ y:n.y, f:() => drawNode(n, time) }));
+  ents.push({ y: playerPos.y, f: () => drawPlayer(time) });
+  ents.sort((a,b) => a.y - b.y);
+  let ei = 0;
+  for (const d of deco){
+    if (d.y > B) break;
+    while (ei < ents.length && ents[ei].y <= d.y){ ents[ei].f(); ei++; }
+    if (d.x > L && d.x < R && d.y > T) drawDeco(d, time);
+  }
+  while (ei < ents.length){ ents[ei].f(); ei++; }
+
+  drawAngelScene(time);
+
+  /* 주인공을 휘감는 반짝이 */
+  for (const sp of sparks){
+    const sx = playerPos.x + Math.cos(sp.a)*sp.r;
+    const sy = playerPos.y - 16 - sp.rise + Math.sin(sp.a)*sp.r*.34;
+    ctx.globalAlpha = clamp(sp.life, 0, 1);
+    ctx.shadowBlur = 10; ctx.shadowColor = sp.col;
+    sparkleStar(sx, sy, sp.size*1.7, sp.col);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  /* 반딧불이 · 파티클 */
+  for (const f of flies){
+    if (!vis(f)) continue;
+    ctx.globalAlpha = .3 + .6*(.5+.5*Math.sin(f.ph));
+    ctx.shadowBlur = 8; ctx.shadowColor = '#c8ff9a';
+    ctx.fillStyle = '#dcff9e';
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.2832); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+  for (const p of parts){
+    ctx.globalAlpha = clamp(p.life,0,1);
+    ctx.shadowBlur = 8; ctx.shadowColor = p.col;
+    ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, 6.2832); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  /* 해질녘 색감 + 비네트 */
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle = 'rgba(12,32,22,.30)';
+  ctx.fillRect(0,0,cssW,cssH);
+  const vg = ctx.createRadialGradient(cssW/2, cssH/2, Math.min(cssW,cssH)*.32,
+                                      cssW/2, cssH/2, Math.max(cssW,cssH)*.78);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(2,8,5,.6)');
+  ctx.fillStyle = vg; ctx.fillRect(0,0,cssW,cssH);
+}
+
+/* ---------- HUD ---------- */
+const slotsEl = el('slots'), toastEl = el('toast');
+
+function renderSlots(){
+  slotsEl.innerHTML = '';
+  for (let i=0; i<GOAL; i++){
+    const d = document.createElement('div');
+    d.className = 'slot';
+    if (i < opened.length){
+      d.classList.add('filled');
+      if (revealNums || finished){
+        const n = opened[i], st = ballStyle(n);
+        d.style.background = st.bg;
+        d.style.color = st.dark ? '#241d0c' : '#fff';
+        d.textContent = n;
+      } else {                              /* 숫자를 감춘 봉인 상태 */
+        d.style.background = '#c8a24a';
+        d.style.color = '#3c2c0e';
+        d.textContent = '🔒';
+      }
+    } else d.textContent = '?';
+    slotsEl.appendChild(d);
+  }
+}
+function useBanked(){
+  const b = bankedSteps();
+  if (!b){ toast('보유한 걸음이 없습니다. 광고를 보면 걸음이 쌓입니다.'); return; }
+  steps += b; setBanked(0);
+  closeModal('failModal');
+  if (!finished) running = true;
+  sfxDone(); updateHUD(); cloudSync();
+  toast('👣 보유 걸음 <b>' + b + '보</b>를 꺼내 썼습니다');
+  checkStuck();
+}
+function updateHUD(){
+  el('stepNum').textContent = steps;
+  const bk = bankedSteps(), chip = el('stepChip');
+  chip.style.display = bk > 0 ? '' : 'none';
+  chip.innerHTML = '👣 보유 걸음 <span>' + bk + '보</span>';
+  updateTotemUI();
+  el('stepFill').style.width = clamp(steps/Math.max(maxSteps,1), 0, 1)*100 + '%';
+  el('stepsBox').classList.toggle('low', steps <= 4);
+  el('buffChip').innerHTML = buff.em + ' ' + buff.name + ' <span>· ' + buff.tag + '</span>';
+}
+let toastTimer = null;
+function toast(msg){
+  toastEl.innerHTML = msg;
+  toastEl.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('on'), 2200);
+}
+
+/* ---------- 기록 ---------- */
+const HKEY = 'forest-trail-lotto-v1';
+function loadHistory(){ try { return JSON.parse(localStorage.getItem(HKEY)) || []; } catch(e){ return []; } }
+function saveHistory(rec){
+  try {
+    const h = loadHistory(); h.unshift(rec);
+    localStorage.setItem(HKEY, JSON.stringify(h.slice(0,30)));
+  } catch(e){}
+}
+function ballHTML(n){
+  const st = ballStyle(n);
+  return '<div class="ball' + (st.dark ? ' d' : '') + '" style="background:' + st.bg + '">' + n + '</div>';
+}
+function fmtTime(sec){
+  const m = Math.floor(sec/60), s = Math.round(sec%60);
+  return m > 0 ? m + '분 ' + s + '초' : s + '초';
+}
+let lastResult = null;
+
+async function renderHistory(){
+  await checkTickets();
+  const h = loadHistory(), list = el('histList');
+  if (!h.length){
+    list.innerHTML = '<div class="empty">아직 발행한 티켓이 없습니다.<br>한 판 끝내면 이번 회차 티켓이 만들어집니다.</div>';
+    return;
+  }
+  list.innerHTML = h.map(r => {
+    let stat = '';
+    if (!r.round) stat = '';
+    else if (!r.checked) stat = '<span class="tstat wait">추첨 대기</span>';
+    else if (r.rank)     stat = '<span class="tstat win">' + RANK_NAME[r.rank] + ' · ' +
+                                (r.hit||0) + '개 적중 · ' + won(r.prize) + '</span>' +
+                                (r.mock ? ' <span class="tag">모의</span>' : '');
+    else                 stat = '<span class="tstat lose">낙첨' +
+                                (r.hit ? ' · ' + r.hit + '개 적중' : '') + '</span>' +
+                                (r.mock ? ' <span class="tag">모의</span>' : '');
+    return '<div class="hitem"><div class="hdate">' +
+      (r.round ? '<b style="color:#f6dda1">' + r.round + '회</b> · ' : '') +
+      (r.id ? '#' + r.id + ' · ' : '') + r.date + ' · ' + (r.em||'') + ' ' + (r.buff||'') + (r.wind ? ' · 🍃 바람' : '') +
+      '</div>' + (stat ? '<div class="hstat">' + stat + '</div>' : '') +
+      '<div class="balls">' + r.main.map(ballHTML).join('') + '</div></div>';
+  }).join('');
+}
+
+/* ---------- 행운의 상자 / 광고 ----------
+   실제 광고 SDK를 붙일 자리다. 지금은 5초 카운트다운 자리표시자로,
+   끝까지 본 경우에만 보상을 준다. runAd() 안의 타이머를 광고 네트워크의
+   '재생 완료' 콜백으로 바꾸면 그대로 연결된다. */
+/* =====================================================================
+   Play 플랫폼 계층 (목업)
+   ---------------------------------------------------------------------
+   실제 Android 빌드에서는 아래 NATIVE 분기가 동작한다.
+   WebView JS 인터페이스( window.AndroidBridge ) 또는 Capacitor 플러그인을
+   붙이고, 각 함수의 MOCK 분기만 걷어내면 그대로 연결된다.
+
+     · 리워드 광고  → AdMob Rewarded  (com.google.android.gms:play-services-ads)
+     · 로그인       → Play Games Services v2 (PlayGames.getGamesSignInClient)
+     · 업적/순위표  → AchievementsClient / LeaderboardsClient
+   실제 단위 ID·업적 ID는 PLAY.md 의 표를 참고해 교체한다.
+   ===================================================================== */
+const NATIVE = !!(window.AndroidBridge && window.AndroidBridge.showRewardedAd);
+
+/* 목업 설정 (개발용 패널에서 조작) */
+const DEV = { ad:'ok', len:5, frame:false };
+
+/* ---------- 저장 ---------- */
+const AKEY = 'forest-ach-v1', LKEY = 'forest-lb-v1', SKEY = 'forest-signin-v1';
+const readJSON = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch(e){ return d; } };
+const writeJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
+
+/* ---------- 업적 ---------- */
+const ACHS = [
+  { id:'first_run',  ico:'🌲', name:'첫 탐험',        desc:'번호 여섯을 처음으로 완성한다' },
+  { id:'gold_take',  ico:'⭐', name:'행운을 줍다',    desc:'황금 상자를 담는다' },
+  { id:'picky',      ico:'🍃', name:'먼 길',          desc:'한 판에서 12번 이상 이동한다' },
+  { id:'shoestring', ico:'👣', name:'아슬아슬',        desc:'남은 걸음 2보 이하로 완주한다' },
+  { id:'veteran',    ico:'🏅', name:'숲의 단골',      desc:'탐험을 5번 완주한다' },
+  { id:'dice_six',   ico:'🎲', name:'숲의 장난',      desc:'주사위에서 6이 나온다' },
+  { id:'angel',      ico:'✦',  name:'천사의 축복',    desc:'초특급 행운상자를 연다' },
+  { id:'first_win',  ico:'🎯', name:'첫 당첨',        desc:'발행한 티켓이 5등 안에 든다' }
+];
+let achDone = readJSON(AKEY, {});
+
+function unlockAch(id){
+  if (achDone[id]) return;
+  const a = ACHS.find(x => x.id === id); if (!a) return;
+  achDone[id] = Date.now(); writeJSON(AKEY, achDone);
+  Play.unlockAchievement(id);
+  el('acName').textContent = a.name;
+  el('acDesc').textContent = a.desc;
+  const t = el('achToast');
+  t.classList.add('on');
+  [784,988,1175].forEach((f,i) => tone(f,.3,'triangle',.1,i*.08));
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), 3200);
+}
+function renderAch(){
+  const got = Object.keys(achDone).length;
+  el('achCount').textContent = got + ' / ' + ACHS.length;
+  el('achList').innerHTML = ACHS.map(a =>
+    '<div class="achit' + (achDone[a.id] ? ' got' : '') + '">' +
+    '<span class="ai">' + a.ico + '</span><span class="at">' +
+    '<div class="a1">' + a.name + '</div><div class="a2">' + a.desc + '</div></span>' +
+    (achDone[a.id] ? '<span class="ac">달성</span>' : '') + '</div>').join('');
+}
+
+/* =====================================================================
+   로또 회차 · 티켓 · 당첨 명예의 전당
+   ---------------------------------------------------------------------
+   지금은 기기 안(localStorage)에서만 돌아간다. 여러 사용자를 한 순위표에
+   모으려면 서버가 필요하다 — 아래 Lotto 객체의 API_BASE 만 채우면 된다.
+
+     GET  /rounds/:drwNo   → { drwNo, nums:[6], bonus, prize:{1..5}, date }
+     POST /tickets         → { round, nums:[6] }        (발행 시 서버 보관)
+     GET  /winners?round=  → [{ round, name, rank, prize }]  (없으면 누적)
+
+   서버가 동행복권 회차 결과를 받아 채점하고 순위를 만드는 구조다.
+   API_BASE 가 비어 있으면 아래 '모의 추첨'으로 대체된다.
+   ===================================================================== */
+const API_BASE = null;
+
+/* 제1회 추첨: 2002-12-07 20:45 KST (= 11:45 UTC), 이후 매주 토요일 */
+const ROUND1_DRAW = Date.UTC(2002, 11, 7, 11, 45);
+const WEEK_MS = 7 * 24 * 3600 * 1000;
+const drawnRounds = t => t < ROUND1_DRAW ? 0 : Math.floor((t - ROUND1_DRAW) / WEEK_MS) + 1;
+const nextRound   = t => drawnRounds(t) + 1;          /* 지금 만든 티켓이 노리는 회차 */
+const drawTimeOf  = n => ROUND1_DRAW + (n - 1) * WEEK_MS;
+const fmtDate = t => {
+  const d = new Date(t), p = x => String(x).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+};
+const won = v => v.toLocaleString('ko-KR') + '원';
+
+/* 회차 번호로 고정되는 난수 — 같은 회차면 누구에게나 같은 결과가 나온다 */
+function seeded(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+/* 모의 추첨 — 실제 동행복권 결과가 아니다. 서버 연결 전 데모용. */
+function mockRound(drwNo){
+  const rnd = seeded(drwNo * 2654435761 % 2147483647);
+  const pool = [];
+  for (let i=1; i<=45; i++) pool.push(i);
+  for (let i=pool.length-1; i>0; i--){
+    const j = Math.floor(rnd()*(i+1));
+    const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+  }
+  const rTo = (v, unit) => Math.round(v/unit)*unit;
+  return {
+    drwNo, mock: true,
+    nums: pool.slice(0,6).sort((a,b)=>a-b),
+    bonus: pool[6],
+    date: fmtDate(drawTimeOf(drwNo)),
+    prize: { 1: rTo(1.5e9 + rnd()*1.6e9, 1e6),   /* 1등: 백만원 단위 */
+             2: rTo(4.0e7 + rnd()*3.0e7, 1e4),   /* 2등: 만원 단위 */
+             3: rTo(1.2e6 + rnd()*7e5,   1e4),   /* 3등: 만원 단위 */
+             4: 50000, 5: 5000 }                 /* 4·5등은 고정 */
+  };
+}
+
+const Lotto = {
+  async round(drwNo){
+    if (API_BASE){
+      try {
+        const r = await fetch(API_BASE + '/rounds/' + drwNo);
+        if (r.ok) return await r.json();
+      } catch(e){}
+    }
+    return mockRound(drwNo);
+  },
+  async submitTicket(t){
+    if (!API_BASE) return;
+    try {
+      await fetch(API_BASE + '/tickets', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ round:t.round, nums:t.main }) });
+    } catch(e){}
+  },
+  async winners(round){
+    if (!API_BASE) return null;                      /* null = 로컬 + 모의로 채운다 */
+    try {
+      const q = round ? '?round=' + round : '';
+      const r = await fetch(API_BASE + '/winners' + q);
+      if (r.ok) return await r.json();
+    } catch(e){}
+    return null;
+  }
+};
+
+/* ---------- 채점 ---------- */
+const RANK_NAME = { 1:'1등', 2:'2등', 3:'3등', 4:'4등', 5:'5등' };
+function matchOf(nums, r){
+  const hit = nums.filter(n => r.nums.includes(n)).length;
+  const bo  = nums.includes(r.bonus);
+  let rank = 0;
+  if (hit === 6) rank = 1;
+  else if (hit === 5 && bo) rank = 2;
+  else if (hit === 5) rank = 3;
+  else if (hit === 4) rank = 4;
+  else if (hit === 3) rank = 5;
+  return { rank, hit, bonus: bo };
+}
+const rankOf = (nums, r) => matchOf(nums, r).rank;
+
+/* 발행 증명 — 추첨 전에 번호를 기록해 두었다는 표식.
+   서버에 붙기 전에는 기기 안 값이라 표시용이고, 서버가 발행 시각을
+   보관해야 비로소 '사후 조작이 아님'의 증거가 된다. */
+function issueId(){
+  const a = new Uint8Array(4);
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
+  else for (let i=0; i<4; i++) a[i] = Math.floor(Math.random()*256);
+  return Array.from(a, x => x.toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+function issuedAgo(t, round){
+  const gap = drawTimeOf(round) - t;
+  if (gap <= 0) return '추첨 후 발행';
+  const d = Math.floor(gap / 86400000);
+  const h = Math.floor(gap / 3600000);
+  return d >= 1 ? '추첨 ' + d + '일 전 발행' : '추첨 ' + Math.max(h,1) + '시간 전 발행';
+}
+
+/* ---------- 명예의 전당 ---------- */
+/* =====================================================================
+   보관 정책
+   ---------------------------------------------------------------------
+   · 티켓 원본(번호 6개 · 발행 번호 · 발행 시각)은 **최근 1회차분만** 보관한다.
+     다음 회차가 추첨되면 폐기하고, 아래 한 줄짜리 로그만 남긴다.
+   · 적중 로그 = { r: 회차, k: 등수, h: 적중 개수 }  — 한 건 30바이트 안팎.
+     회차가 지날 때마다 한 줄씩 쌓이므로 용량이 사실상 늘지 않는다.
+   · 금액은 저장하지 않는다. 회차 정보에서 등수로 다시 구한다.
+   · 발행 증명(#번호·발행 시각)은 원본이 살아 있는 동안만 표시된다.
+   ===================================================================== */
+const LOGKEY = 'forest-hitlog-v1';     /* 적중 로그 (누적·영구) */
+const ISKEY  = 'forest-issued-v1';     /* 발행 누계 카운터 */
+const WKEY   = 'forest-winners-v1';    /* 구버전 키 — 1회 이관 후 삭제 */
+
+const hitLog   = () => readJSON(LOGKEY, []);
+const issuedNo = () => readJSON(ISKEY, { n:0 }).n;
+function bumpIssued(){ writeJSON(ISKEY, { n: issuedNo() + 1 }); }
+
+/* 구버전(WKEY) 기록을 로그로 옮기고 지운다 */
+(function migrateWinners(){
+  const old = readJSON(WKEY, null);
+  if (!old || !old.length) { try { localStorage.removeItem(WKEY); } catch(e){} return; }
+  const log = hitLog();
+  for (const w of old) if (w && w.round && w.rank) log.push({ r:w.round, k:w.rank, h:w.hit||0 });
+  writeJSON(LOGKEY, log);
+  try { localStorage.removeItem(WKEY); } catch(e){}
+})();
+
+/* 오래된 티켓 원본을 로그 한 줄로 압축하고 폐기 */
+function compactTickets(){
+  const cur = drawnRounds(Date.now());
+  const keepFrom = cur;                     /* 가장 최근 추첨 회차 1주차분만 원본 보관 */
+  const list = loadHistory();
+  const keep = [], log = hitLog();
+  let dropped = 0;
+  for (const t of list){
+    if (!t.round){ dropped++; continue; }               /* 회차 없는 구기록은 폐기 */
+    if (t.round >= keepFrom || !t.checked){ keep.push(t); continue; }
+    if (t.rank) log.push({ r: t.round, k: t.rank, h: t.hit || 0 });
+    dropped++;
+  }
+  if (!dropped) return 0;
+  writeJSON(LOGKEY, log);
+  try { localStorage.setItem(HKEY, JSON.stringify(keep)); } catch(e){}
+  return dropped;
+}
+
+/* ---------- 티켓 채점 (앱 실행 시·명예의 전당 열 때) ---------- */
+async function checkTickets(){
+  const list = loadHistory();
+  const now = Date.now();
+  let changed = false;
+  const fresh = [];
+  for (const t of list){
+    if (!t.round || t.checked || !Array.isArray(t.main)) continue;
+    if (now < drawTimeOf(t.round)) continue;              /* 아직 추첨 전 */
+    const r = await Lotto.round(t.round);
+    if (!r) continue;
+    const m = matchOf(t.main, r);
+    t.checked = true; t.rank = m.rank; t.hit = m.hit;
+    t.prize = m.rank ? r.prize[m.rank] : 0;
+    t.mock = !!r.mock;
+    changed = true;
+    if (m.rank){ fresh.push(t); unlockAch('first_win'); }
+  }
+  if (changed){ try { localStorage.setItem(HKEY, JSON.stringify(list)); } catch(e){} }
+  compactTickets();
+  if (changed){
+    const b = bestHitScore();
+    if (b.score) Play.submitScore(b.score, b.tag);
+    cloudSync();
+  }
+  return fresh;
+}
+
+/* ---------- 화면 ---------- */
+let lbTab = 'round';
+
+/* 순위 행 = 적중 로그 + (원본이 남아 있으면) 발행 증명 */
+async function boardRows(scope, last){
+  const server = await Lotto.winners(scope === 'round' ? last : null);
+  if (server) return server;
+
+  const rows = hitLog().map(e => ({ round:e.r, rank:e.k, hit:e.h, me:true, name:Play.name() }));
+  for (const t of loadHistory())
+    if (t.round && t.checked && t.rank)
+      rows.push({ round:t.round, rank:t.rank, hit:t.hit||0, me:true, name:Play.name(),
+                  id:t.id, issuedAt:t.issuedAt });
+
+  const out = scope === 'round' ? rows.filter(r => r.round === last) : rows;
+  for (const r of out){                       /* 금액은 저장하지 않고 회차에서 되찾는다 */
+    const rd = await Lotto.round(r.round);
+    r.prize = rd.prize[r.rank] || 0;
+    r.mock  = !!rd.mock;
+  }
+  return out;
+}
+
+async function renderLB(){
+  await checkTickets();
+  const now = Date.now();
+  const last = drawnRounds(now);
+  const box = el('drawBox');
+
+  if (last < 1){
+    box.innerHTML = '<div class="pend">아직 추첨된 회차가 없습니다.</div>';
+  } else {
+    const r = await Lotto.round(last);
+    box.innerHTML =
+      '<div class="dh"><b>' + last + '회</b> · ' + r.date + ' 추첨' +
+      (r.mock ? ' <span class="tag">모의</span>' : '') + '</div>' +
+      '<div class="balls">' + r.nums.map(ballHTML).join('') +
+      '<span class="plus">+</span>' + ballHTML(r.bonus) + '</div>';
+  }
+
+  const rows = (await boardRows(lbTab, last))
+    .sort((a,b) => (b.hit||0) - (a.hit||0) || a.rank - b.rank || b.round - a.round)
+    .slice(0, 5);
+
+  el('lbList').innerHTML = rows.length ? rows.map((w,i) =>
+    '<div class="wit' + (w.me ? ' me' : '') + '"><span class="rk">' + (i+1) + '</span>' +
+    '<span class="wl"><div class="w1">' +
+    '<span class="rkbadge r' + w.rank + '">' + RANK_NAME[w.rank] + '</span> ' +
+    (w.me ? Play.name() + ' (나)' : w.name) + '</div>' +
+    '<div class="w2">' + w.round + '회 · <b>' + (w.hit || 0) + '개 적중</b>' +
+    (w.issuedAt ? ' · ' + issuedAgo(w.issuedAt, w.round) : '') +
+    (w.id ? ' · #' + w.id : '') + '</div></span>' +
+    '<span class="amt">' + won(w.prize) +
+    '<span class="amtsub">회차 ' + RANK_NAME[w.rank] + ' 수령액</span></span></div>').join('')
+    : '<div class="empty">' + (lbTab === 'round'
+        ? '이 회차에 적중 기록이 없습니다.'
+        : '아직 적중 기록이 없습니다.') +
+      '<br><span style="font-size:11.5px">' +
+      (API_BASE ? '' : '서버 연결 전에는 이 기기의 기록만 표시됩니다.') + '</span></div>';
+
+  const raw = loadHistory().filter(t => t.round);
+  const waiting = raw.filter(t => !t.checked).length;
+  const logged  = hitLog().length;
+  const winsNow = raw.filter(t => t.rank).length;
+  el('myTicketSum').innerHTML =
+    '발행 누계 <b>' + issuedNo() + '장</b> · 적중 <b>' + (logged + winsNow) + '건</b>' +
+    (waiting ? ' · 추첨 대기 <b>' + waiting + '장</b>' : '') +
+    '<br><span style="font-size:10.5px;color:#6f8478">티켓 원본은 <b>최근 1회차분만</b> 보관하고, ' +
+    '다음 회차가 추첨되면 <b>회차·등수·적중 개수</b> 로그만 남깁니다</span>';
+
+  el('lbDisc').innerHTML =
+    '이 앱은 <b>복권을 판매하지 않고 당첨금도 지급하지 않습니다.</b> 순위는 앱이 발행한 ' +
+    '번호가 회차 당첨번호와 몇 개 맞았는지에 대한 기록이며, <b>실제 구매·수령 여부는 ' +
+    '확인하지 않습니다.</b> 금액은 그 회차에 공표된 등수별 수령액입니다.' +
+    (API_BASE ? '' : '<br>⚠️ 서버 연결 전이라 <b>모의 추첨</b>으로 채점되며 ' +
+      '실제 동행복권 당첨번호가 아닙니다. 발행 증명(#번호·발행 시각)도 서버가 보관해야 ' +
+      '효력이 생깁니다.');
+}
+function setTab(t){
+  lbTab = t;
+  el('tabRound').classList.toggle('on', t === 'round');
+  el('tabAll').classList.toggle('on', t === 'all');
+  renderLB();
+}
+
+/* ---------- Play 서비스 ---------- */
+const Play = {
+  signedIn: readJSON(SKEY, { in:false }).in,
+  name(){ return this.signedIn ? '숲지기' : '손님'; },
+
+  signIn(){
+    if (NATIVE) return window.AndroidBridge.signIn();       /* ← 실제: Play Games v2 */
+    this.signedIn = true; writeJSON(SKEY, { in:true });
+    updatePlayUI(); toast('Play 게임즈에 로그인했습니다 (목업)');
+    this.cloudLoad().then(d => {
+      if (applyCloud(d)){ updateGoldUI(); toast('계정에 저장된 기록을 불러왔습니다'); }
+      cloudSync();
+    });
+  },
+  signOut(){
+    if (NATIVE) return window.AndroidBridge.signOut();
+    this.signedIn = false; writeJSON(SKEY, { in:false });
+    updatePlayUI(); toast('로그아웃했습니다 (목업)');
+  },
+  unlockAchievement(id){
+    if (NATIVE) window.AndroidBridge.unlockAchievement(id); /* ← 실제: AchievementsClient.unlock */
+  },
+  /* 리더보드 — 서버 없이 전 세계 순위를 얻는 통로.
+     점수는 정수 하나뿐이라 '최고 적중'을 60/51/50/40/30 으로 인코딩해 올린다.
+     tag 는 짧은 메타 문자열(회차 등)로, 길이 제한이 있으니 짧게 유지한다. */
+  submitScore(v, tag){
+    if (NATIVE) window.AndroidBridge.submitScore(v, tag || '');
+  },
+  /* 저장된 게임(Snapshots) — 별 보유량·적중 로그·업적을 계정에 묶는다.
+     기기를 바꾸거나 재설치해도 복원된다. 로그인해야 동작한다. */
+  cloudSave(payload){
+    if (NATIVE && this.signedIn) window.AndroidBridge.saveGame(JSON.stringify(payload));
+  },
+  /* 배너 — 실제 앱에서는 AdMob BannerView 를 붙였다 떼면 된다 */
+  showBanner(){ if (NATIVE && window.AndroidBridge.showBanner) window.AndroidBridge.showBanner(); },
+  hideBanner(){ if (NATIVE && window.AndroidBridge.hideBanner) window.AndroidBridge.hideBanner(); },
+  exitApp(){
+    if (NATIVE && window.AndroidBridge.exitApp) window.AndroidBridge.exitApp();
+  },
+  cloudLoad(){
+    if (NATIVE && this.signedIn) return new Promise(res => {
+      window.onGameLoaded = j => { try { res(JSON.parse(j)); } catch(e){ res(null); } };
+      window.AndroidBridge.loadGame();
+    });
+    return Promise.resolve(null);
+  },
+  /* 리워드 광고: 끝까지 본 경우에만 resolve('rewarded') */
+  showRewardedAd(){
+    if (NATIVE) return new Promise(res => {                 /* ← 실제: RewardedAd.show */
+      window.onRewardedAdResult = r => res(r);
+      window.AndroidBridge.showRewardedAd();
+    });
+    return mockRewardedAd();
+  }
+};
+
+function updatePlayUI(){
+  const row = el('playRow');
+  row.classList.toggle('in', Play.signedIn);
+  row.classList.toggle('out', !Play.signedIn);
+  el('pAvatar').textContent = Play.signedIn ? '숲' : '?';
+  el('pName').textContent = Play.signedIn ? Play.name() + ' 님' : 'Play 게임즈에 로그인하지 않음';
+  el('pDesc').textContent = Play.signedIn
+    ? '업적과 순위표가 계정에 저장됩니다.'
+    : '로그인하면 업적과 순위표가 계정에 저장됩니다.';
+  el('signBtn').textContent = Play.signedIn ? '로그아웃' : '로그인';
+}
+
+/* ---------- 계정 저장소 동기화 ----------
+   Play Games 저장된 게임에 올릴 묶음. 번호 원본은 보관 정책대로
+   최근 1회차분만 들어간다. */
+function cloudPayload(){
+  return { v:1, gold: goldStock, banked: bankedSteps(), issued: issuedNo(),
+           totem: totem(), log: hitLog(), ach: achDone, tickets: loadHistory() };
+}
+function applyCloud(d){
+  if (!d || d.v !== 1) return false;
+  let changed = false;
+  if (typeof d.gold === 'number' && d.gold > goldStock){
+    goldStock = d.gold; saveGold(); changed = true;
+  }
+  if (d.totem && Array.isArray(d.totem.got)){
+    const cur = totem();
+    if (d.totem.got.length > cur.got.length || (d.totem.tickets||0) > (cur.tickets||0)){
+      saveTotem({ got: d.totem.got, tickets: Math.max(cur.tickets||0, d.totem.tickets||0) });
+      changed = true;
+    }
+  }
+  if (typeof d.banked === 'number' && d.banked > bankedSteps()){
+    setBanked(d.banked); changed = true;
+  }
+  if (typeof d.issued === 'number' && d.issued > issuedNo()){
+    writeJSON(ISKEY, { n: d.issued }); changed = true;
+  }
+  if (Array.isArray(d.log) && d.log.length > hitLog().length){
+    writeJSON(LOGKEY, d.log); changed = true;
+  }
+  if (d.ach){
+    for (const k in d.ach) if (!achDone[k]){ achDone[k] = d.ach[k]; changed = true; }
+    writeJSON(AKEY, achDone);
+  }
+  if (Array.isArray(d.tickets) && d.tickets.length > loadHistory().length){
+    try { localStorage.setItem(HKEY, JSON.stringify(d.tickets)); } catch(e){}
+    changed = true;
+  }
+  return changed;
+}
+let syncTimer = null;
+function cloudSync(){                       /* 잦은 저장을 눌러 모아서 올린다 */
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => Play.cloudSave(cloudPayload()), 1200);
+}
+/* 리더보드 점수 = 최고 적중 (6개=60 · 5+보너스=51 · 5개=50 · 4개=40 · 3개=30) */
+function bestHitScore(){
+  const all = hitLog().concat(
+    loadHistory().filter(t => t.rank).map(t => ({ r:t.round, k:t.rank, h:t.hit||0 })));
+  let best = 0, tag = '';
+  for (const e of all){
+    const v = (e.h||0) * 10 + (e.k === 2 ? 1 : 0);
+    if (v > best){ best = v; tag = e.r + '회'; }
+  }
+  return { score: best, tag };
+}
+
+/* ---------- 리워드 광고 목업 ---------- */
+let adTimer = null, adResolve = null;
+function mockRewardedAd(){
+  return new Promise(res => {
+    if (DEV.ad === 'nofill'){ res('nofill'); return; }
+    if (DEV.ad === 'error'){  res('error');  return; }
+    adResolve = res;
+    document.body.classList.add('adplaying');
+    const total = DEV.len;
+    let left = total;
+    const doneBtn = el('adDone'), fill = el('adFill'), tm = el('adTimer');
+    doneBtn.disabled = true;
+    doneBtn.textContent = left + '초 남음…';
+    tm.textContent = left;
+    fill.style.width = '0%';
+    openModal('adModal');
+    clearInterval(adTimer);
+    adTimer = setInterval(() => {
+      left--;
+      tm.textContent = Math.max(left, 0);
+      fill.style.width = ((total - left) / total * 100) + '%';
+      if (left <= 0){
+        clearInterval(adTimer); adTimer = null;
+        tm.textContent = '✓';
+        doneBtn.disabled = false;
+        doneBtn.textContent = '⭐ 행운의 상자 받기';
+        tone(880, .2, 'triangle', .1);
+      } else doneBtn.textContent = left + '초 남음…';
+    }, 1000);
+  });
+}
+function endAd(result){
+  clearInterval(adTimer); adTimer = null;
+  document.body.classList.remove('adplaying');
+  closeModal('adModal');
+  const r = adResolve; adResolve = null;
+  if (r) r(result);
+}
+
+/* 걸음이 막혔을 때 — 광고 1회로 AD_STEPS 만큼 이어 간다 */
+async function watchAdForSteps(){
+  audio();
+  const r = await Play.showRewardedAd();
+  if (r !== 'rewarded'){
+    toast(r === 'nofill' ? '지금은 볼 수 있는 광고가 없습니다. 잠시 뒤 다시 시도해 주세요.'
+        : r === 'error'  ? '광고를 불러오지 못했습니다. 네트워크를 확인해 주세요.'
+        : '광고를 끝까지 봐야 걸음을 받을 수 있습니다');
+    return;
+  }
+  goldStock += AD_STARS; saveGold(); updateGoldUI();
+  steps += AD_STEPS;
+  adSteps += AD_STEPS;
+  closeModal('failModal');
+  running = true;
+  sfxDone();
+  updateHUD(); cloudSync();
+  toast('⭐ 별 +' + AD_STARS + ' · 👣 걸음 <b>+' + AD_STEPS + '</b> — 다시 걸을 수 있습니다');
+  checkStuck();                      /* 그래도 못 가면 다시 안내한다 */
+}
+
+async function watchAd(){
+  audio();
+  const r = await Play.showRewardedAd();
+  if (r === 'rewarded'){
+    goldStock += AD_STARS;
+    setBanked(bankedSteps() + AD_STEPS);
+    saveGold(); updateGoldUI(); updateHUD(); cloudSync();
+    sfxDone();
+    toast('⭐ 별 +' + AD_STARS + ' · 👣 걸음 +' + AD_STEPS +
+          '<br><span style="font-size:11px;color:#9cb3a4">별 ' + goldStock +
+          '개 · 보유 걸음 ' + bankedSteps() + '보</span>');
+  } else if (r === 'nofill'){
+    toast('지금은 볼 수 있는 광고가 없습니다. 잠시 뒤 다시 시도해 주세요.');
+  } else if (r === 'error'){
+    toast('광고를 불러오지 못했습니다. 네트워크를 확인해 주세요.');
+  } else {
+    toast('광고를 끝까지 봐야 보상이 지급됩니다');
+  }
+}
+
+function updateTotemUI(){
+  const t = totem(), n = t.got.length;
+  el('totemArt').innerHTML = totemSVG(t.got, 58);
+  el('totemTitle').textContent = goldenTickets()
+    ? '🗿 전체 황금상자 모드 ' + goldenTickets() + '회 보유'
+    : '행운의 토템 ' + n + ' / ' + TOTEM_N;
+  el('totemNote').innerHTML = goldenTickets()
+    ? '숲에 들어가기 전 화면에서 사용할 수 있습니다.'
+    : (n ? '남은 조각 <b>' + (TOTEM_N - n) + '개</b> · <b>한 판에 한 조각</b>씩, 어느 상자에서 나올지는 무작위입니다.'
+         : '<b>한 판에 한 조각</b>씩 나옵니다. 어느 상자인지는 무작위. 12조각을 모으면 <b>전체 황금상자 모드</b>가 됩니다.');
+  const chip = el('totemChip');
+  chip.style.display = (n || goldenTickets()) ? '' : 'none';
+  chip.innerHTML = goldenTickets()
+    ? '🗿 <span>황금모드 ' + goldenTickets() + '회</span>'
+    : '🗿 토템 <span>' + n + '/' + TOTEM_N + '</span>';
+}
+function showTotemComplete(){
+  const full = [];
+  for (let i=0; i<TOTEM_N; i++) full.push(i);
+  el('totemBig').innerHTML = totemSVG(full, 132);
+  updateTotemUI();
+  openModal('totemModal');
+}
+
+function updateGoldUI(){
+  el('goldCount').textContent = '행운의 상자 ' + goldStock + '개';
+  el('goldNote').innerHTML =
+    '광고를 보면 <b>별 +' + AD_STARS + ' · 걸음 +' + AD_STEPS + '</b>. 보유에 상한은 없습니다.<br>' +
+    '숲에 들어가기 전 <b>0~' + MAP_GOLD_MAX + '개</b>를 골라 황금 상자로 놓습니다 (고른 만큼 소모).';
+  el('adBtn1').disabled = false;
+  const chip = el('goldChip');
+  chip.style.display = goldStock > 0 ? '' : 'none';
+  chip.innerHTML = '⭐ 행운의 상자 <span>' + goldStock + '개</span>';
+}
+
+el('adBtn1').addEventListener('click', watchAd);
+el('adBtn2').addEventListener('click', watchAd);
+el('adDone').addEventListener('click', () => { if (!el('adDone').disabled) endAd('rewarded'); });
+el('adCancel').addEventListener('click', () => endAd('dismissed'));
+el('signBtn').addEventListener('click', () => Play.signedIn ? Play.signOut() : Play.signIn());
+el('achBtn').addEventListener('click', () => { renderAch(); openModal('achModal'); });
+el('lbBtn').addEventListener('click', () => { openModal('lbModal'); renderLB(); });
+el('resAchBtn').addEventListener('click', () => { renderAch(); openModal('achModal'); });
+el('resLbBtn').addEventListener('click', () => { openModal('lbModal'); renderLB(); });
+el('achClose').addEventListener('click', () => closeModal('achModal'));
+el('lbClose').addEventListener('click', () => closeModal('lbModal'));
+el('tabRound').addEventListener('click', () => setTab('round'));
+el('tabAll').addEventListener('click', () => setTab('all'));
+
+/* ---------- 종료 ----------
+   앱 빌드에서는 AndroidBridge.exitApp() (또는 Capacitor App.exitApp) 로 실제 종료된다.
+   브라우저에서는 스크립트가 연 창이 아니면 닫을 수 없어, 그 사실을 그대로 알린다. */
+function openExit(){
+  const mid = running && !finished;
+  el('exitSub').innerHTML = mid
+    ? '진행 중인 판이 있습니다. 지금 나가면 <b>이번 판은 사라집니다.</b><br>' +
+      '(발행된 티켓은 완주해야 만들어집니다)'
+    : '언제든 다시 이어서 하실 수 있습니다.';
+  openModal('exitModal');
+}
+function goHome(){
+  closeModal('exitModal');
+  document.body.classList.remove('playing');
+  Play.hideBanner();
+  running = false; finished = false; mover = null; forced = null;
+  revealed = false; revealNums = false; travel = null; paths = null;
+  el('diceLayer').classList.remove('on');
+  document.body.classList.remove('dicing');
+  ['resultModal','failModal','starModal','buffModal','histModal','achModal','lbModal']
+    .forEach(m => closeModal(m));
+  updateGoldUI(); updateTotemUI(); updateHUD();
+  openModal('luckModal');
+}
+function quitApp(){
+  cloudSync();
+  if (NATIVE && window.AndroidBridge.exitApp){ window.AndroidBridge.exitApp(); return; }
+  closeModal('exitModal');
+  try { window.close(); } catch(e){}
+  setTimeout(() => {
+    if (!document.hidden)
+      toast('브라우저에서는 창을 닫을 수 없습니다.<br>' +
+            '<span style="font-size:11px;color:#9cb3a4">앱으로 설치하면 여기서 정상 종료됩니다</span>');
+  }, 350);
+}
+el('exitBtn').addEventListener('click', openExit);
+el('luckExitBtn').addEventListener('click', openExit);
+el('exitStay').addEventListener('click', () => closeModal('exitModal'));
+el('exitHome').addEventListener('click', goHome);
+el('exitApp').addEventListener('click', quitApp);
+
+/* ---------- 목업 개발자 패널 ---------- */
+el('devBtn').addEventListener('click', () => openModal('devModal'));
+el('devClose').addEventListener('click', () => closeModal('devModal'));
+el('devAd').addEventListener('change', e => { DEV.ad = e.target.value; });
+el('devLen').addEventListener('change', e => { DEV.len = +e.target.value; });
+el('devSign').addEventListener('change', e => {
+  e.target.value === 'in' ? Play.signIn() : Play.signOut();
+});
+el('devFrame').addEventListener('change', e => {
+  DEV.frame = e.target.value === 'on';
+  document.body.classList.toggle('frame', DEV.frame);
+  setTimeout(resize, 60);
+});
+el('devReset').addEventListener('click', () => {
+  try { [HKEY, GKEY, AKEY, LKEY, SKEY, WKEY, LOGKEY, ISKEY, BKEY, TOTEM_KEY]
+        .forEach(k => localStorage.removeItem(k)); } catch(e){}
+  goldStock = 0; achDone = {}; placeGold = 0; goldenMode = false;
+  updateGoldUI(); updatePlayUI(); updateHUD(); updateTotemUI();
+  toast('저장 데이터를 초기화했습니다');
+});
+
+/* ---------- 안드로이드 뒤로가기 ---------- */
+const MODALS = ['adModal','totemModal','exitModal','devModal','lbModal','achModal','histModal','failModal','trimModal','resultModal','starModal','buffModal'];
+function openModal(id){
+  el(id).classList.add('on');
+  try { history.pushState({ modal:id }, ''); } catch(e){}
+}
+function closeModal(id){ el(id).classList.remove('on'); }
+window.addEventListener('popstate', () => {
+  const top = MODALS.find(m => el(m).classList.contains('on'));
+  if (!top){                          /* 최상위에서 뒤로가기 → 종료 확인 */
+    if (!el('luckModal').classList.contains('on') || running) openExit();
+    else openExit();
+    return;
+  }
+  if (top === 'adModal') endAd('dismissed');
+  else if (top === 'trimModal'){ beginNumberReveal(); }   /* 정리를 건너뛰면 그대로 확정 */
+  else closeModal(top);
+});
+
+/* 등급 범례 (버프 화면에 함께 노출) */
+function renderGradeLegend(){
+  const rows = ['low','mid','high','angel','gold'].map(k => {
+    const g = GRADES[k];
+    const cnt = k === 'gold'
+      ? (goldStock ? '보유 ' + goldStock + '개 · 다음 화면에서 0~' + MAP_GOLD_MAX + '개 선택'
+                   : '없음 (광고로 획득)')
+      : k === 'angel'
+      ? '한 판에 많아야 1개 · 나올 확률 ' + Math.round(ANGEL_CHANCE*100) + '%'
+      : GRADE_MIX[k] + '개';
+    return '<div class="bl"><span class="k" style="color:' + g.trim + '">' +
+           g.label + ' ' + g.name + '</span><span class="v">' + g.desc +
+           ' <b style="color:#9cb3a4;font-weight:600">· ' + cnt + '</b></span></div>';
+  }).join('');
+  el('gradeBox').innerHTML =
+    '<div class="buffhead"><span class="em">🎁</span><span>' +
+    '<div class="nm">상자 등급</div>' +
+    '<div class="sm">상자 색으로 등급을 알 수 있다 — 어디로 갈지, 무엇을 지나칠지의 기준</div></span></div>' +
+    rows +
+    '<div class="bl"><span class="k" style="color:#cdb4ff">🗿 행운의 토템</span><span class="v">' +
+    '<b>한 판에 한 조각</b> · 어느 상자에서 나올지는 무작위 · 12조각을 모으면 ' +
+    '<b>전체 황금상자 모드</b> 1회권이 되고 토템은 사라진다</span></div>' +
+    '<div class="bl"><span class="k" style="color:#cdb4ff">🎲 주사위 상자</span><span class="v">' +
+    '오솔길 <b>중간</b>에 6개 · 열면 1~6이 나오고 그 수만큼 <b>걸음 없이</b> 무작위로 끌려간다' +
+    '</span></div>' +
+    '<div class="bl"><span class="k" style="color:#9cb3a4">유의</span><span class="v" style="color:#9cb3a4">' +
+    '등급은 <b>숫자 크기와 아무 상관이 없다</b>. 45개 상자에 무작위로 흩뿌려지며, ' +
+    '달라지는 것은 <b>걸음 보너스와 지나치기 비용</b>뿐이다.</span></div>';
+}
+
+/* ---------- 버프 선택 화면 ---------- */
+function showBuff(k){
+  buff = BUFFS[k];
+  el('buffBox').innerHTML =
+    '<div class="buffhead"><span class="em">' + buff.em + '</span><span>' +
+    '<div class="nm">' + buff.name + '</div>' +
+    '<div class="sm">대답: ' + buff.luck + ' · ' + buff.tag + '</div></span></div>' +
+    buff.lines.map(l => '<div class="bl"><span class="k">' + l[0] + '</span><span class="v">' + l[1] + '</span></div>').join('');
+  renderGradeLegend();
+  el('luckModal').classList.remove('on');
+  openModal('buffModal');
+}
+document.querySelectorAll('.luckbtn').forEach(b => {
+  b.addEventListener('click', () => { audio(); tone(660,.14,'triangle',.1); showBuff(b.dataset.luck); });
+});
+el('reLuckBtn').addEventListener('click', () => {
+  el('buffModal').classList.remove('on');
+  el('luckModal').classList.add('on');
+});
+/* 버프 확정 → 별 배치 선택 (별이 없으면 건너뛴다) */
+function openStarPick(){
+  goldenMode = false;
+  if (goldStock <= 0 && goldenTickets() <= 0){ placeGold = 0; startRun(true); return; }
+  placeGold = Math.min(goldStock, MAP_GOLD_MAX);
+  renderStarPick();
+  closeModal('buffModal');
+  openModal('starModal');
+}
+function renderStarPick(){
+  const max = Math.min(goldStock, MAP_GOLD_MAX);
+  placeGold = clamp(placeGold, 0, max);
+  let html = '';
+  for (let i=0; i<=MAP_GOLD_MAX; i++){
+    html += '<button data-n="' + i + '"' + (i > max ? ' disabled' : '') +
+            (i === placeGold ? ' class="on"' : '') + '>' + i +
+            '<em>' + (i === 0 ? '아낌' : '별 ' + i) + '</em></button>';
+  }
+  const gb = el('goldenBtn');
+  gb.style.display = goldenTickets() > 0 ? '' : 'none';
+  gb.textContent = '🗿 전체 황금상자 모드로 들어가기 (' + goldenTickets() + '회)';
+  el('starPick').innerHTML = html;
+  el('starPick').querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => { placeGold = +b.dataset.n; renderStarPick(); }));
+  el('starInfo').innerHTML =
+    '보유 별 <b>' + goldStock + '개</b> → 이번 판에 <b>' + placeGold + '개</b> 배치 · ' +
+    '남는 별 <b>' + (goldStock - placeGold) + '개</b><br>' +
+    (placeGold
+      ? '황금 상자는 담으면 <b>걸음 +4</b>입니다.'
+      : '이번 판에는 황금 상자가 나오지 않습니다. 별은 그대로 쌓입니다.');
+  el('starGo').textContent = placeGold
+    ? '🌲 별 ' + placeGold + '개를 놓고 들어가기'
+    : '🌲 별을 아끼고 들어가기';
+}
+el('enterBtn').addEventListener('click', openStarPick);
+el('starBack').addEventListener('click', () => { closeModal('starModal'); openModal('buffModal'); });
+el('goldenBtn').addEventListener('click', () => {
+  const t = totem();
+  if (!t.tickets) return;
+  t.tickets--; saveTotem(t);
+  goldenMode = true; placeGold = 0;
+  updateTotemUI(); cloudSync();
+  startRun(true);
+  toast('🗿 <b>전체 황금상자 모드</b> — 45개 상자가 모두 황금이다');
+});
+el('totemClose').addEventListener('click', () => closeModal('totemModal'));
+el('trimKeepBtn').addEventListener('click', () => {
+  audio(); tone(880,.16,'triangle',.1);
+  trimDrop = new Set();
+  beginNumberReveal();
+});
+el('trimDropBtn').addEventListener('click', () => {
+  if (!trimDrop.size) return;
+  audio(); applyTrim();
+});
+el('starGo').addEventListener('click', () => {
+  goldenMode = false;
+  const use = clamp(placeGold, 0, Math.min(goldStock, MAP_GOLD_MAX));
+  goldStock -= use; placeGold = use;
+  saveGold(); updateGoldUI(); cloudSync();
+  startRun(true);
+});
+el('againBtn').addEventListener('click', () => { closeModal('resultModal'); openStarPick(); });
+el('reAskBtn').addEventListener('click', () => {
+  document.body.classList.remove('playing'); Play.hideBanner();
+  ['resultModal','failModal'].forEach(m => el(m).classList.remove('on'));
+  el('luckModal').classList.add('on');
+  running = false;
+});
+el('failAgainBtn').addEventListener('click', () => { closeModal('failModal'); openStarPick(); });
+el('adStepBtn').addEventListener('click', watchAdForSteps);
+el('bankBtn').addEventListener('click', useBanked);
+el('stepChip').addEventListener('click', useBanked);
+el('windBtn').addEventListener('click', windFill);
+el('homeBtn').addEventListener('click', recenter);
+el('mapBtn').addEventListener('click', toggleMap);
+el('histBtn').addEventListener('click', () => { renderHistory(); openModal('histModal'); });
+el('luckHistBtn').addEventListener('click', () => { renderHistory(); openModal('histModal'); });
+el('resHistBtn').addEventListener('click', () => { renderHistory(); openModal('histModal'); });
+el('histClose').addEventListener('click', () => closeModal('histModal'));
+el('histClear').addEventListener('click', () => {
+  try { localStorage.removeItem(HKEY); } catch(e){}
+  renderHistory();
+});
+document.querySelector('.ticket').addEventListener('click', () => {
+  if (!lastResult) return;
+  const txt = '🌲 숲속 오솔길 보물찾기 · 로또 번호\n' + lastResult.main.join(', ') +
+              '\n' + lastResult.em + ' ' + lastResult.buff + ' (' + lastResult.date + ')';
+  const done = () => toast('번호를 복사했습니다 📋');
+  if (navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(txt).then(done).catch(() => toast('복사에 실패했습니다'));
+  else {
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch(e){ toast('복사에 실패했습니다'); }
+    document.body.removeChild(ta);
+  }
+});
+el('soundBtn').addEventListener('click', () => {
+  soundOn = !soundOn;
+  el('soundBtn').textContent = soundOn ? '🔊' : '🔇';
+  if (soundOn){ audio(); tone(660,.12,'triangle',.1); }
+});
+
+/* ---------- 루프 ---------- */
+let last = 0;
+function loop(now){
+  const dt = Math.min((now - last)/1000 || 0, .05);
+  last = now;
+  update(dt, now);
+  render(now);
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 초기화 ---------- */
+if (!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+    r = Math.min(r, Math.abs(w)/2, Math.abs(h)/2);
+    this.moveTo(x+r, y);
+    this.arcTo(x+w, y,   x+w, y+h, r);
+    this.arcTo(x+w, y+h, x,   y+h, r);
+    this.arcTo(x,   y+h, x,   y,   r);
+    this.arcTo(x,   y,   x+w, y,   r);
+    this.closePath();
+    return this;
+  };
+}
+/* 오프라인 셸 등록 — file:// 이나 샌드박스에서는 조용히 건너뛴다 */
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+goldStock = loadGold();
+updateGoldUI();
+updateTotemUI();
+updatePlayUI();
+
+/* 앱을 켤 때 지난 회차 티켓을 채점하고, 당첨이 있으면 알려준다 */
+setTimeout(async () => {
+  const fresh = await checkTickets();
+  if (!fresh.length) return;
+  const best = fresh.reduce((a,b) => a.prize > b.prize ? a : b);
+  let sum = 0; for (const f of fresh) sum += f.prize;
+  const bs = bestHitScore(); if (bs.score) Play.submitScore(bs.score, bs.tag);
+  toast('🎯 ' + best.round + '회 <b>' + RANK_NAME[best.rank] + '</b> 적중! (' +
+        (best.hit||0) + '개)' + (fresh.length > 1 ? ' · 총 ' + fresh.length + '장' : '') +
+        (API_BASE ? '' : '<br><span style="font-size:11px;color:#9cb3a4">모의 추첨 결과입니다</span>'));
+}, 2200);
+/* 앱 실행 느낌의 스플래시 — 목업에서는 1.3초 뒤 사라진다 */
+setTimeout(() => el('splash').classList.add('gone'), 1300);
+resize();
+makeGround();
+genMap();
+cur = entrance;
+playerPos.x = cur.x; playerPos.y = cur.y;
+camX = cur.x; camY = cur.y;
+vs = followScale(); targetVS = vs;
+steps = maxSteps = buff.steps;
+renderSlots(); updateHUD();
+
+/* 목업 점검용 상태 훅 (자동 테스트에서만 읽는다) */
+window.__ST = () => ({ angel: !!angel, blessed, revealed, revealNums, finished, running, buff: buff.key,
+                       opened: opened.slice(), steps, totem: totemGiven,
+                       sig: nodes.filter(n => n.chest).map(n => n.num).join(','),
+                       dropped: nodes.filter(n => n.discarded).map(n => n.num).join(','),
+                       angelAt: (nodes.find(n => n.grade && n.grade.key === 'angel') || {}).num });
+
+/* 가벼운 위치 훅 — 주사위 이동 추적용 */
+window.__CUR = () => ({ cur: nodes.indexOf(cur), forced: !!forced, moving: !!mover, steps });
+
+/* 목업 점검용 지도 스냅샷 (읽기 전용 — 자동 테스트에서만 쓴다) */
+window.__MAP = () => ({
+  cur: nodes.indexOf(cur), steps, goal: GOAL,
+  costs: edges.map(e => e.cost),
+  nodes: nodes.map((n,i) => ({
+    i, num: n.num, chest: !!n.chest, dice: !!n.dice, entrance: n === entrance,
+    opened: !!n.opened, used: !!n.used, taken: !!n.taken, discarded: !!n.discarded,
+    grade: n.grade ? n.grade.key : null, totem: n.totem, roll: n.roll,
+    reach: paths ? paths.dist.get(n) : Infinity,
+    sx: (n.x - camX)*vs + cssW/2, sy: (n.y - camY)*vs + cssH/2
+  }))
+});
+
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

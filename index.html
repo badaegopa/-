@@ -2030,17 +2030,27 @@ function makeGround(){
   const c = document.createElement('canvas'); c.width = c.height = s;
   const g = c.getContext('2d');
   g.fillStyle = '#1a3a26'; g.fillRect(0,0,s,s);
+  /* 타일 경계에 걸친 얼룩은 반대편에도 똑같이 찍어 이음매를 지운다 */
+  const wrap = (x, y, draw) => {
+    for (const dx of [-s, 0, s]) for (const dy of [-s, 0, s]) draw(x + dx, y + dy);
+  };
   for (let i=0; i<800; i++){
+    const x = Math.random()*s, y = Math.random()*s;
+    const rx = rnd(7,34), ry = rnd(5,24), rot = Math.random()*6.28;
     g.fillStyle = pick(['rgba(35,74,47,.55)','rgba(21,45,30,.6)','rgba(44,88,57,.35)','rgba(28,58,38,.5)']);
-    g.beginPath();
-    g.ellipse(Math.random()*s, Math.random()*s, rnd(7,34), rnd(5,24), Math.random()*6.28, 0, 6.2832);
-    g.fill();
+    wrap(x, y, (px, py) => {
+      if (px < -40 || px > s+40 || py < -40 || py > s+40) return;
+      g.beginPath(); g.ellipse(px, py, rx, ry, rot, 0, 6.2832); g.fill();
+    });
   }
   for (let i=0; i<420; i++){
     const x = Math.random()*s, y = Math.random()*s, a = Math.random()*6.28, l = rnd(4,13);
     g.strokeStyle = pick(['rgba(92,74,46,.30)','rgba(66,88,54,.32)','rgba(50,40,28,.28)']);
     g.lineWidth = rnd(.7,1.9);
-    g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(a)*l, y+Math.sin(a)*l); g.stroke();
+    wrap(x, y, (px, py) => {
+      if (px < -20 || px > s+20 || py < -20 || py > s+20) return;
+      g.beginPath(); g.moveTo(px, py); g.lineTo(px+Math.cos(a)*l, py+Math.sin(a)*l); g.stroke();
+    });
   }
   groundPattern = ctx.createPattern(c, 'repeat');
 }

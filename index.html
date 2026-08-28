@@ -2029,7 +2029,7 @@ function makeGround(){
   const s = 512;
   const c = document.createElement('canvas'); c.width = c.height = s;
   const g = c.getContext('2d');
-  g.fillStyle = '#1a3a26'; g.fillRect(0,0,s,s);
+  g.fillStyle = '#1d4026'; g.fillRect(0,0,s,s);
   /* 타일 경계에 걸친 얼룩은 반대편에도 똑같이 찍어 이음매를 지운다 */
   const wrap = (x, y, draw) => {
     for (const dx of [-s, 0, s]) for (const dy of [-s, 0, s]) draw(x + dx, y + dy);
@@ -2037,7 +2037,7 @@ function makeGround(){
   for (let i=0; i<800; i++){
     const x = Math.random()*s, y = Math.random()*s;
     const rx = rnd(7,34), ry = rnd(5,24), rot = Math.random()*6.28;
-    g.fillStyle = pick(['rgba(35,74,47,.55)','rgba(21,45,30,.6)','rgba(44,88,57,.35)','rgba(28,58,38,.5)']);
+    g.fillStyle = pick(['rgba(88,120,56,.34)','rgba(18,44,30,.60)','rgba(112,132,62,.20)','rgba(38,80,50,.48)']);
     wrap(x, y, (px, py) => {
       if (px < -40 || px > s+40 || py < -40 || py > s+40) return;
       g.beginPath(); g.ellipse(px, py, rx, ry, rot, 0, 6.2832); g.fill();
@@ -2045,7 +2045,7 @@ function makeGround(){
   }
   for (let i=0; i<420; i++){
     const x = Math.random()*s, y = Math.random()*s, a = Math.random()*6.28, l = rnd(4,13);
-    g.strokeStyle = pick(['rgba(92,74,46,.30)','rgba(66,88,54,.32)','rgba(50,40,28,.28)']);
+    g.strokeStyle = pick(['rgba(186,178,104,.26)','rgba(88,120,62,.32)','rgba(96,74,42,.28)']);
     g.lineWidth = rnd(.7,1.9);
     wrap(x, y, (px, py) => {
       if (px < -20 || px > s+20 || py < -20 || py > s+20) return;
@@ -2057,8 +2057,8 @@ function makeGround(){
 
 /* ---------- 그리기 유틸 ---------- */
 const TREE_TONES = [
-  ['#1f5436','#2a6c44','#327f4f'], ['#1c4a33','#256040','#2d764c'],
-  ['#23552f','#2d7042','#37854f'], ['#1a4530','#22593a','#2a6c47']
+  ['#14402a','#2c6f45','#5f9a52'], ['#123a26','#276438','#579349'],
+  ['#173f24','#2f7442','#6aa456'], ['#0f3722','#245e36','#528d46']
 ];
 function shadowE(x,y,rx,ry,a){
   ctx.fillStyle = 'rgba(0,0,0,' + (a||.26) + ')';
@@ -2067,7 +2067,7 @@ function shadowE(x,y,rx,ry,a){
 function drawDeco(o, time){
   if (o.t === 'tree'){
     const sway = Math.sin(time*.00085 + o.seed) * (o.r/17);
-    shadowE(o.x, o.y, o.r*.6, o.r*.19, .3);
+    shadowE(o.x + o.r*.34, o.y + 1.5, o.r*.86, o.r*.20, .36);
     const tw = o.r*.16;
     ctx.fillStyle = '#3b2b1d';
     ctx.beginPath();
@@ -2817,7 +2817,7 @@ function drawPlayer(time){
    ③ 색보정 — 위는 따뜻하게, 아래는 차갑게 눌러 시선을 가운데로 모은다 */
 let bloomCv = null, bloomCtx = null;
 let quality = 1;                       /* 느린 기기에서는 스스로 낮춘다 */
-let frameCost = 16;
+let frameCost = 16, qSwitch = 0;
 const BLOOM_DIV = 10;                  /* 크게 줄였다가 늘리면 그 자체가 블러다 */
 function ensureBloom(){
   if (!bloomCv){ bloomCv = document.createElement('canvas'); bloomCtx = bloomCv.getContext('2d'); }
@@ -2834,7 +2834,7 @@ function applyBloom(){
   ctx.save();
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.globalCompositeOperation = 'lighter';  /* 어두운 곳은 거의 더해지지 않는다 */
-  ctx.globalAlpha = .30;
+  ctx.globalAlpha = .22;
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(bloomCv, 0, 0, cssW, cssH);
   ctx.restore();
@@ -2860,7 +2860,7 @@ function buildForeground(){          /* 크기가 바뀔 때 딱 한 번 그린�
     g.translate(L.cx*fgW, L.cy*fgH);
     g.rotate(L.rot);
     const R = base * L.r;
-    g.fillStyle = 'rgba(7,22,14,' + L.a + ')';
+    g.fillStyle = 'rgba(10,28,18,' + L.a + ')';
     for (let k=0; k<3; k++){
       g.save(); g.rotate((k-1)*0.62);
       g.beginPath();
@@ -2897,10 +2897,36 @@ function render(time){
   const L = camX-halfW-80, R = camX+halfW+80, T = camY-halfH-200, B = camY+halfH+120;
   const vis = o => o.x > L && o.x < R && o.y > T && o.y < B;
 
-  ctx.fillStyle = '#12291b';
+  ctx.fillStyle = '#193a24';
   ctx.fillRect(L-200, T-200, (R-L)+400, (B-T)+400);
-  ctx.fillStyle = groundPattern || '#1a3a26';
+  ctx.fillStyle = groundPattern || '#1d4026';
   ctx.fillRect(L-200, T-200, (R-L)+400, (B-T)+400);
+
+  /* 먼저 땅거미를 깐다 — 그늘은 푸르게 가라앉는다 */
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = 'rgba(74,104,140,.34)';
+  ctx.fillRect(L-200, T-200, (R-L)+400, (B-T)+400);
+  ctx.restore();
+
+  /* 나뭇잎 사이로 비껴 든 저녁 햇살 — 해가 낮아 웅덩이가 길게 눕는다 */
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i=0; i<(quality ? 10 : 4); i++){
+    const px = MARGIN + ((i*613) % (MAP.w - 2*MARGIN)) + Math.sin(time*.00018 + i)*22;
+    const py = MARGIN + ((i*887) % (MAP.h - 2*MARGIN)) + Math.cos(time*.00015 + i)*16;
+    if (px < L-260 || px > R+260 || py < T-200 || py > B+200) continue;
+    const rr = 120 + (i%4)*44;
+    const lg = ctx.createRadialGradient(px, py, 2, px, py, rr);
+    lg.addColorStop(0,  'rgba(255,206,124,.30)');
+    lg.addColorStop(.5, 'rgba(255,176,92,.11)');
+    lg.addColorStop(1,  'rgba(255,176,92,0)');
+    ctx.save();
+    ctx.translate(px, py); ctx.scale(1.7, 1);      /* 낮은 해 = 길게 늘어난 빛 */
+    ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(0, 0, rr, 0, 6.2832); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
 
   drawTrails(time);
 
@@ -2933,8 +2959,8 @@ function render(time){
   for (const f of flies){
     if (!vis(f)) continue;
     ctx.globalAlpha = .3 + .6*(.5+.5*Math.sin(f.ph));
-    ctx.shadowBlur = 8; ctx.shadowColor = '#c8ff9a';
-    ctx.fillStyle = '#dcff9e';
+    ctx.shadowBlur = 9; ctx.shadowColor = '#ffe89a';
+    ctx.fillStyle = '#fff3b0';
     ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.2832); ctx.fill();
     ctx.shadowBlur = 0;
   }
@@ -2954,24 +2980,32 @@ function render(time){
   /* 멀어질수록 내려앉는 안개 — 가운데는 맑고 가장자리는 푸르게 */
   const fog = ctx.createRadialGradient(cssW/2, cssH*.52, Math.min(cssW,cssH)*.18,
                                        cssW/2, cssH*.52, Math.max(cssW,cssH)*.72);
-  fog.addColorStop(0,   'rgba(120,190,160,0)');
-  fog.addColorStop(.55, 'rgba(86,150,132,.10)');
-  fog.addColorStop(1,   'rgba(58,118,110,.24)');
+  fog.addColorStop(0,   'rgba(255,206,150,0)');
+  fog.addColorStop(.5,  'rgba(255,186,120,.07)');
+  fog.addColorStop(1,   'rgba(52,104,108,.26)');
   ctx.fillStyle = fog; ctx.fillRect(0,0,cssW,cssH);
+
+  /* 기울어진 해 — 오른쪽 위에서 들어오는 빛 */
+  const sun = ctx.createRadialGradient(cssW*.86, cssH*.12, 4, cssW*.86, cssH*.12, Math.max(cssW,cssH)*.85);
+  sun.addColorStop(0,  'rgba(255,196,116,.26)');
+  sun.addColorStop(.35,'rgba(255,168,96,.09)');
+  sun.addColorStop(1,  'rgba(255,168,96,0)');
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = sun; ctx.fillRect(0,0,cssW,cssH); ctx.restore();
 
   applyBloom();
   drawForeground(time);
 
   /* 해질녘 색감 — 위는 따뜻하게, 아래는 차갑게 */
   const grade = ctx.createLinearGradient(0, 0, 0, cssH);
-  grade.addColorStop(0,   'rgba(255,196,120,.09)');
-  grade.addColorStop(.45, 'rgba(12,32,22,.20)');
-  grade.addColorStop(1,   'rgba(6,20,26,.34)');
+  grade.addColorStop(0,   'rgba(255,150,72,.20)');
+  grade.addColorStop(.40, 'rgba(214,142,80,.04)');
+  grade.addColorStop(1,   'rgba(6,22,34,.44)');
   ctx.fillStyle = grade; ctx.fillRect(0,0,cssW,cssH);
 
   const vg = ctx.createRadialGradient(cssW/2, cssH/2, Math.min(cssW,cssH)*.30,
                                       cssW/2, cssH/2, Math.max(cssW,cssH)*.76);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(2,8,5,.62)');
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(3,12,16,.62)');
   ctx.fillStyle = vg; ctx.fillRect(0,0,cssW,cssH);
 }
 
@@ -3903,9 +3937,12 @@ el('soundBtn').addEventListener('click', () => {
 let last = 0;
 function loop(now){
   if (loop._t){
-    frameCost = frameCost*.9 + (now - loop._t)*.1;
-    if (quality === 1 && frameCost > 26) quality = 0;        /* 버거우면 마감을 내린다 */
-    else if (quality === 0 && frameCost < 17) quality = 1;
+    frameCost = frameCost*.92 + (now - loop._t)*.08;
+    if (quality === 1 && frameCost > 30 && now - qSwitch > 1500){
+      quality = 0; qSwitch = now;                 /* 버거우면 마감을 내린다 */
+    } else if (quality === 0 && frameCost < 13 && now - qSwitch > 6000){
+      quality = 1; qSwitch = now;                 /* 여유가 확실할 때만 되돌린다 */
+    }
   }
   loop._t = now;
   const dt = Math.min((now - last)/1000 || 0, .05);

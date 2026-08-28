@@ -326,6 +326,25 @@
   .achit .a2{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.5;}
   .achit .ac{font-size:11px;font-weight:900;color:#4bb98a;}
 
+  /* 하단 배너 광고 — 판이 진행되는 동안 계속 붙어 있는다 */
+  #banner{position:fixed;left:0;right:0;bottom:0;z-index:44;display:none;
+    align-items:center;gap:10px;height:calc(50px + env(safe-area-inset-bottom,0px));
+    padding:0 12px env(safe-area-inset-bottom,0px);
+    background:rgba(6,14,10,.94);border-top:1px solid rgba(233,196,106,.22);
+    backdrop-filter:blur(8px);}
+  body.playing #banner{display:flex;}
+  .ad-tag{flex:0 0 auto;font-size:9.5px;font-weight:900;letter-spacing:.06em;
+    color:#0d2116;background:#e9c46a;border-radius:4px;padding:2px 6px;}
+  .ad-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;text-align:left;}
+  .ad-body b{font-size:12px;font-weight:800;color:var(--gold-2);}
+  .ad-body span{font-size:10px;color:#7b8f83;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* 배너에 가리지 않도록 아래쪽을 비운다 */
+  body.playing #hud{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 62px);}
+  body.playing #toast{bottom:calc(env(safe-area-inset-bottom,0px) + 62px);}
+  @media (max-width:560px){
+    body.playing #toast{bottom:auto;}
+  }
+
   /* 행운의 토템 */
   .totemrow{display:flex;align-items:center;gap:13px;background:rgba(120,90,180,.10);
     border:1px solid rgba(205,180,255,.24);border-radius:16px;padding:11px 13px;
@@ -405,9 +424,13 @@
   .lbit .sc{font-size:13px;font-weight:900;color:var(--gold-2);font-variant-numeric:tabular-nums;}
 
   /* 목업 개발자 패널 */
-  #devBtn{position:fixed;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:70;
+  #devBtn,#exitBtn{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:70;
     width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
     background:rgba(9,22,15,.85);color:var(--gold-2);font-size:15px;backdrop-filter:blur(6px);}
+  #devBtn{right:8px;}
+  #exitBtn{left:8px;color:#ffb6a8;border-color:rgba(255,140,120,.35);}
+  body.frame #exitBtn{top:calc(env(safe-area-inset-top,0px) + 34px);}
+  body.adplaying #exitBtn,body.dicing #exitBtn{display:none;}
   body.adplaying #devBtn,
   body.dicing #devBtn{display:none;}      /* 광고·주사위 연출을 가리지 않게 */
   body.frame #devBtn{top:calc(env(safe-area-inset-top,0px) + 34px);}
@@ -498,7 +521,7 @@
   </div>
   <div class="spacer"></div>
   <div class="bottom">
-    <div class="hint" id="hint"><b>탭</b> 이동 · <b>끌기</b> 지도 · <b>두 손가락</b> 확대<br>열면 <b>담기/지나치기</b> 선택</div>
+    <div class="hint" id="hint">멀리 있는 상자도 <b>탭</b>하면 최단거리로 간다<br>숫자는 <b>여섯을 채운 뒤</b> 드러난다</div>
     <div class="btns">
       <button class="mini recenter" id="homeBtn" title="내 위치로">🎯<span class="lbl"> 내 위치</span></button>
       <button class="mini" id="mapBtn">🗺<span class="lbl"> 전체지도</span></button>
@@ -508,27 +531,20 @@
   </div>
 </div>
 
-<div id="choice">
-  <div id="chBall">?</div>
-  <div class="ctxt">
-    <div class="ct1"><span class="gbadge" id="chGrade">하급</span>
-      <span class="chline"><b id="chNum">?</b>번이 나왔다</span></div>
-    <div class="ct2" id="chEffect">담아도 걸음 보너스는 없다</div>
-    <div class="cmemo" id="chMemo">첫 숫자다</div>
-    <div class="ct3" id="chSub">담으면 0 / 6</div>
-  </div>
-  <div class="cbtns">
-    <button id="takeBtn">✋ 담기</button>
-    <button id="skipBtn">🍃 지나치기 <em>1보</em></button>
-  </div>
-</div>
-
 <div id="diceLayer">
   <div class="dice-in">
     <div class="dice-cap">🎲 행운의 주사위 상자</div>
     <div class="die" id="die"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <div class="dice-msg" id="diceMsg">굴리는 중…</div>
   </div>
+</div>
+
+<div id="banner" role="complementary" aria-label="광고">
+  <span class="ad-tag">AD</span>
+  <span class="ad-body">
+    <b>광고 배너 자리</b>
+    <span>AdMob 320×50 · 실제 배너로 교체됩니다</span>
+  </span>
 </div>
 
 <div id="toast"></div>
@@ -584,6 +600,7 @@
       <button class="ghost" id="lbBtn">🏆 순위표</button>
     </div>
     <button class="ghost" id="luckHistBtn">📜 지난 기록 보기</button>
+    <button class="ghost" id="luckExitBtn">⏻ 게임 종료</button>
     <p class="disc">오락용 무작위 번호 생성기입니다. 당첨을 보장하지 않으며 번호는 브라우저 암호학적 난수(crypto)로 섞습니다.</p>
   </div>
 </div>
@@ -615,6 +632,21 @@
   </div>
 </div>
 
+<!-- 종료 -->
+<div class="modal" id="exitModal">
+  <div class="card">
+    <h2>⏻ 게임을 마칠까요?</h2>
+    <p class="sub" id="exitSub"></p>
+    <button class="cta" id="exitStay">← 계속하기</button>
+    <div class="row2">
+      <button class="ghost" id="exitHome">🏠 시작 화면으로</button>
+      <button class="ghost" id="exitApp">⏻ 앱 종료</button>
+    </div>
+    <p class="disc">별·보유 걸음·토템 조각·티켓은 이 기기에 저장되어 있어
+    다시 켜도 그대로입니다.</p>
+  </div>
+</div>
+
 <!-- 토템 완성 -->
 <div class="modal" id="totemModal">
   <div class="card">
@@ -624,7 +656,7 @@
     <div class="tot-big" id="totemBig"></div>
     <div class="starinfo">
       <b>전체 황금상자 모드</b> — 숲의 <b>45개 상자가 모두 황금 상자</b>가 됩니다.<br>
-      담으면 걸음 +4, 지나치기는 공짜. <b>단 한 판</b>만 쓸 수 있습니다.<br>
+      담으면 걸음 +4. <b>단 한 판</b>만 쓸 수 있습니다.<br>
       <span style="color:#6f8478">숲에 들어가기 전 화면에서 사용 여부를 고르세요.</span>
     </div>
     <button class="cta" id="totemClose">좋다</button>
@@ -720,6 +752,7 @@
 </div>
 
 <!-- 목업 개발자 패널 -->
+<button id="exitBtn" title="게임 종료" aria-label="게임 종료">⏻</button>
 <button id="devBtn" title="목업 설정">🧪</button>
 <div class="modal" id="devModal">
   <div class="card">
@@ -788,7 +821,7 @@ const MAP_GOLD_MAX = 6;                // 한 판 숲에 놓을 수 있는 황�
 const AD_STARS     = 1;                // 광고 1회 보상: 별
 const AD_STEPS     = 2;                // 광고 1회 보상: 걸음 (창고에 쌓인다)
 const TOTEM_N      = 12;               // 행운의 토템 조각 수
-const TOTEM_DROP   = 0.18;             // 상자를 열 때 조각이 떨어질 확률
+const TOTEM_AT_MAX = 6;                // 조각은 한 판에 정확히 1개, 여는 순서 중 하나에서
 const WALK_SPEED = 340;                // px/s
 
 /* ---------- 유틸 ---------- */
@@ -836,8 +869,8 @@ const BUFFS = {
     steps: START_STEPS,
     lines: [
       ['시작 걸음', '<b>18보</b> — 모든 대답이 같다'],
-      ['순풍',      '<b>이동과 지나치기</b> 모두 <b>35% 확률로 걸음을 쓰지 않는다</b>'],
-      ['고르기',    '걸음을 자주 아끼는 만큼 <b>마음에 안 드는 번호를 더 많이 지나칠 수 있다</b>'],
+      ['순풍',      '오솔길을 지날 때 <b>35% 확률로 걸음을 쓰지 않는다</b>'],
+      ['멀리',      '걸음을 자주 아끼는 만큼 <b>더 깊은 숲까지 들어갈 수 있다</b>'],
       ['한마디',    '운을 믿는 자에게 숲은 적게 내어주고, 대신 자주 눈감아 준다.']
     ]
   },
@@ -847,9 +880,9 @@ const BUFFS = {
     steps: START_STEPS,
     lines: [
       ['시작 걸음', '<b>18보</b> — 모든 대답이 같다'],
-      ['나침반',   '이웃한 상자의 <b>번호 범위(1~15 / 16~30 / 31~45)</b>가 미리 보인다'],
-      ['눈썰미',   '<b>상급 상자도 1보</b>로 지나칠 수 있다 (원래는 2보)'],
-      ['한마디',   '무난한 날에는, 앞을 읽는 눈이 가장 큰 무기가 된다.']
+      ['나침반',   '이웃한 상자의 <b>등급이 글자로</b> 보인다 (다른 대답은 색으로만 판단)'],
+      ['꾸준함',   '상자를 담을 때마다 <b>걸음 +1</b>'],
+      ['한마디',   '숫자는 누구에게도 보이지 않는다. 보이는 건 상자의 생김새뿐이다.']
     ]
   },
   bad: {
@@ -869,16 +902,16 @@ const BUFFS = {
 const GRADES = {
   low:  { key:'low',  name:'하급',        label:'하', tag:'낡은 나무 상자',
           body:'#6b4a2a', lid:'#7d5730', trim:'#9a7644', gems:0,
-          bonus:0, skip:1, desc:'걸음 보너스 없음 · 지나치기 1보' },
+          bonus:0, skip:1, desc:'걸음 보너스 없음' },
   mid:  { key:'mid',  name:'중급',        label:'중', tag:'은장 상자',
           body:'#4f6069', lid:'#61757f', trim:'#d3e2ea', gems:1,
-          bonus:1, skip:1, desc:'담으면 걸음 +1 · 지나치기 1보' },
+          bonus:1, skip:1, desc:'담으면 걸음 +1' },
   high: { key:'high', name:'상급',        label:'상', tag:'붉은 옻칠 상자',
           body:'#7b322d', lid:'#933f38', trim:'#e9c46a', gems:2,
-          bonus:2, skip:2, desc:'담으면 걸음 +2 · 아까운 만큼 지나치기 2보' },
+          bonus:2, skip:2, desc:'담으면 걸음 +2' },
   gold: { key:'gold', name:'행운의 상자', label:'⭐', tag:'광고로 얻은 황금 상자',
           body:'#c08f26', lid:'#e0a92e', trim:'#fff0b8', gems:3,
-          bonus:4, skip:0, desc:'담으면 걸음 +4 · 지나치기는 공짜' }
+          bonus:4, skip:0, desc:'담으면 걸음 +4' }
 };
 const GRADE_MIX = { low: 24, mid: 14, high: 7 };   // 45개 분포
 const DICE_COUNT = 6;                              // 오솔길 중간에 끼우는 주사위 상자
@@ -902,11 +935,10 @@ const saveTotem  = t  => writeJSON(TOTEM_KEY, t);
 const totemDone  = () => totem().got.length >= TOTEM_N;
 const goldenTickets = () => totem().tickets || 0;
 
-/* 상자를 열 때 호출 — 조각을 얻으면 인덱스를, 아니면 null 을 돌려준다.
+/* 한 판에 한 번만 부른다 — 아직 없는 조각 하나를 준다.
    12번째 조각이면 { piece, complete:true } 로 알린다. */
-function tryTotemDrop(){
+function takeTotemPiece(){
   const t = totem();
-  if (Math.random() >= TOTEM_DROP) return null;
   const left = [];
   for (let i=0; i<TOTEM_N; i++) if (!t.got.includes(i)) left.push(i);
   if (!left.length) return null;
@@ -971,7 +1003,10 @@ function saveGold(){ try { localStorage.setItem(GKEY, String(goldStock)); } catc
 /* ---------- 상태 ---------- */
 let nodes = [], edges = [], entrance = null;
 let cur = null, steps = 0, maxSteps = 0, opened = [];
-let pending = null, skipped = 0;      // 담기/지나치기 결정 대기 노드, 지나친 상자 수
+let revealed = false;                 // 여섯을 채운 뒤 숫자를 드러낸 상태
+let travel = null;                    // 여러 칸 연속 이동 { legs, i }
+let totemAt = 1;                      // 이번 판에서 조각이 나올 개봉 순번 (1~6)
+let paths  = null;                    // 현재 위치 기준 최단거리표
 let placeGold = 0;                    // 이번 판 숲에 놓을 황금 상자 수 (별 소모량)
 let goldenMode = false;               // 전체 황금상자 모드 (토템 1회권)
 let adSteps = 0;                      // 이번 판에 광고로 받은 걸음
@@ -1236,7 +1271,7 @@ function followScale(){
 }
 const OV_TOP = 190;                      // 상단 HUD 가림 보정
 function fitScale(){
-  return Math.min(cssW/(MAP.w+140), (cssH-OV_TOP)/(MAP.h+150));
+  return Math.min(cssW/(MAP.w+230), (cssH-OV_TOP)/(MAP.h+230));
 }
 function resize(){
   dpr  = Math.min(window.devicePixelRatio || 1, (window.innerWidth < 700 ? 1.75 : 2));
@@ -1254,7 +1289,7 @@ const playerPos = { x:0, y:0 };
 
 /* ---------- 진행 ---------- */
 function startRun(keepBuff){
-  ['luckModal','buffModal','starModal','resultModal','failModal','histModal','achModal','lbModal','devModal','totemModal']
+  ['luckModal','buffModal','starModal','resultModal','failModal','histModal','achModal','lbModal','devModal','totemModal','exitModal']
     .forEach(m => el(m).classList.remove('on'));
   if (!keepBuff) buff = BUFFS.normal;
   genMap();
@@ -1263,45 +1298,115 @@ function startRun(keepBuff){
   camX = cur.x; camY = cur.y;
   steps = maxSteps = buff.steps;
   opened = []; moveCount = 0; finished = false; mover = null;
-  pending = null; skipped = 0; hideChoice();
-  forced = null; diceChain = 0; diceRolls = 0; adSteps = 0;
+  revealed = false;
+  forced = null; travel = null; diceChain = 0; diceRolls = 0; adSteps = 0;
   el('diceLayer').classList.remove('on');
   document.body.classList.remove('dicing');
   overview = false; freeLook = false; targetVS = followScale();
   el('mapBtn').classList.remove('on'); el('hud').classList.remove('free');
+  totemAt = 1 + secRand(TOTEM_AT_MAX);   /* 몇 번째 상자에서 나올지 미리 정한다 */
+  computePaths();
   startTime = performance.now();
   running = true;
+  document.body.classList.add('playing');
+  Play.showBanner();
   el('hint').classList.remove('fade');
   audio();
   renderSlots(); updateHUD(); updateGoldUI();
-  toast('상자 <b>6개</b>를 담으면 완성 · 걸음 ' + steps + '보');
+  toast('상자 <b>6개</b>를 담으면 숫자가 드러난다 · 걸음 ' + steps + '보');
 }
 
 function edgeCost(e){ return e.cost; }
 
-function canMove(link){
-  return !finished && !mover && !pending && !forced && running && edgeCost(link.e) <= steps;
+/* 현재 위치에서 모든 상자까지의 최단 걸음 수 (다익스트라).
+   노드가 50여 개뿐이라 단순 선형 탐색으로 충분하다. cur 이 바뀔 때만 다시 계산. */
+function computePaths(){
+  const dist = new Map(), prev = new Map(), done = new Set();
+  for (const n of nodes) dist.set(n, Infinity);
+  if (!cur){ paths = { dist, prev }; return; }
+  dist.set(cur, 0);
+  for (;;){
+    let best = null, bd = Infinity;
+    for (const n of nodes){
+      if (done.has(n)) continue;
+      const d = dist.get(n);
+      if (d < bd){ bd = d; best = n; }
+    }
+    if (!best) break;
+    done.add(best);
+    for (const l of best.adj){
+      const nd = bd + edgeCost(l.e);
+      if (nd < dist.get(l.to)){ dist.set(l.to, nd); prev.set(l.to, { from: best, link: l }); }
+    }
+  }
+  paths = { dist, prev };
+}
+function pathTo(node){
+  if (!paths || !paths.prev.has(node)) return null;
+  const out = [];
+  let n = node, guard = 0;
+  while (n !== cur && guard++ < 200){
+    const p = paths.prev.get(n);
+    if (!p) return null;
+    out.unshift(p.link);
+    n = p.from;
+  }
+  return out.length ? out : null;
+}
+const reachCost = node => paths ? paths.dist.get(node) : Infinity;
+
+/* 한 노드에서 각 노드까지의 '칸 수' — 주사위가 최대한 멀리 보내는 데 쓴다 */
+function hopsFrom(origin){
+  const h = new Map([[origin, 0]]);
+  const q = [origin];
+  while (q.length){
+    const n = q.shift();
+    for (const l of n.adj) if (!h.has(l.to)){ h.set(l.to, h.get(n)+1); q.push(l.to); }
+  }
+  return h;
 }
 
-function moveTo(link){
-  if (forced) return;
-  if (pending){ sfxNo(); toast('먼저 이 상자를 <b>담을지 지나칠지</b> 정하자'); return; }
-  if (!canMove(link)) {
+function canTravel(){
+  return running && !finished && !mover && !revealed && !forced && !travel;
+}
+
+/* 멀리 있는 상자를 눌러도 된다 — 최단 경로를 따라가고 그만큼 걸음을 뺀다.
+   지나치는 상자는 열리지 않고, 도착한 상자만 열린다. */
+function travelTo(node){
+  if (!canTravel()) return;
+  if (node === cur){ toast('이미 이 자리에 서 있다'); return; }
+  const path = pathTo(node);
+  if (!path){ sfxNo(); toast('그 상자로 이어진 길이 없다'); return; }
+
+  let cost = 0, freeLegs = 0;
+  const legs = path.map(l => {
+    const f = buff.key === 'good' && Math.random() < .35;   /* 순풍은 구간마다 판정 */
+    if (f) freeLegs++; else cost += edgeCost(l.e);
+    return { link: l, free: f };
+  });
+  if (cost > steps){
     sfxNo();
-    toast('걸음이 모자라 그 길로는 갈 수 없다 (필요 ' + link.e.cost + '보)');
+    toast('걸음이 모자라다 — 그 상자까지 <b>' + reachCost(node) + '보</b> 필요');
     return;
   }
-  const free = buff.key === 'good' && Math.random() < .35;
-  const cost = free ? 0 : edgeCost(link.e);
   steps -= cost;
-  moveCount++;
-  if (free){ sfxLuck(); toast('🍀 순풍! 이 길은 걸음을 쓰지 않았다'); }
-  link.e.visited = true;
+  moveCount += legs.length;
   freeLook = false; el('hud').classList.remove('free');
   el('hint').classList.add('fade');
-  mover = { e: link.e, from: cur, to: link.to, t: 0, dur: Math.max(.28, link.e.len / WALK_SPEED) };
-  sfxStep();
+  travel = { legs, i: 0 };
+  if (freeLegs){ sfxLuck(); toast('🍀 순풍! ' + freeLegs + '구간을 걸음 없이 지났다'); }
+  else if (legs.length > 1) toast('👣 ' + legs.length + '칸을 지나 이동 · 걸음 -' + cost);
   updateHUD();
+  nextLeg();
+}
+function nextLeg(){
+  if (!travel || travel.i >= travel.legs.length){ travel = null; return false; }
+  const l = travel.legs[travel.i++].link;
+  l.e.visited = true;
+  mover = { e: l.e, from: cur, to: l.to, t: 0,
+            dur: Math.max(.18, l.e.len / (WALK_SPEED * 1.4)) };
+  sfxStep();
+  return true;
 }
 
 function arrive(node){
@@ -1310,23 +1415,39 @@ function arrive(node){
   if (finished) return;
   playerPos.x = node.x; playerPos.y = node.y;
 
+  computePaths();
   /* 주사위에 휩쓸려 가는 중 — 지나치는 상자는 열지 않는다 */
   if (forced){
     if (forced.left > 0){ forcedStep(); return; }
     forced = null;
+  }
+  /* 최단거리 이동 경유 중 — 도착지에서만 상자를 연다 */
+  if (travel){
+    if (travel.i < travel.legs.length){ nextLeg(); return; }
+    travel = null;
   }
   /* 주사위 상자 도착 */
   if (node.dice && !node.used){ rollDice(node); return; }
   diceChain = 0;
 
   if (node.chest && !node.opened){
+    /* 숫자는 보여주지 않는다 — 선호가 끼어들 여지 없이 그대로 담는다 */
     node.opened = true;
-    node.openT = performance.now();
-    sfxOpen();
+    node.taken  = true;
+    node.openT  = performance.now();
+    opened.push(node.num);
+    sfxOpen(); sfxTake();
     burst(node.x, node.y);
-    pending = node;                       // 담을지 지나칠지 결정 대기
-    showChoice(node);
-    const drop = tryTotemDrop();          // 열었으니 조각이 떨어질 수 있다
+
+    const gr = node.grade;
+    if (gr.bonus > 0) steps += gr.bonus;
+    if (gr.key === 'gold') unlockAch('gold_take');
+    if (buff.key === 'normal') steps += 1;
+    renderSlots();
+
+    /* 토템 조각은 한 판에 딱 하나 — 미리 정해둔 순번의 상자에서 나온다 */
+    const drop = (opened.length === totemAt) ? takeTotemPiece() : null;
+    if (drop) node.totem = drop.piece;
     if (drop){
       updateHUD();
       if (drop.complete){
@@ -1339,6 +1460,10 @@ function arrive(node){
       }
     }
     updateHUD();
+    if (opened.length >= GOAL){ beginReveal(); return; }
+    toast('상자를 담았다 · <b>' + (GOAL - opened.length) + '개</b> 남음' +
+          (gr.bonus ? ' · ' + gr.name + ' 걸음 +' + gr.bonus : ''));
+    checkStuck();
     return;
   }
   updateHUD();
@@ -1394,6 +1519,7 @@ function rollDice(node){
 }
 
 function startForced(n){
+  /* 아래 forced 에 출발점 기준 칸 수와 지나온 자리를 담아, 되돌아가지 않고 멀어지게 한다 */
   if (diceChain > DICE_CHAIN_MAX){
     toast('주사위가 잦아 숲이 잠잠해졌다');
     diceChain = 0;
@@ -1401,19 +1527,26 @@ function startForced(n){
     return;
   }
   freeLook = false; el('hud').classList.remove('free');
-  forced = { left: n, from: null };
+  forced = { left: n, from: null, hops: hopsFrom(cur), seen: new Set([cur]) };
   toast('🎲 ' + n + '칸 이동 — 걸음 소모 없음');
   forcedStep();
 }
 
 function forcedStep(){
-  if (!forced || forced.left <= 0){ forced = null; updateHUD(); checkStuck(); return; }
+  if (!forced || forced.left <= 0){ forced = null; computePaths(); updateHUD(); checkStuck(); return; }
   const links = cur.adj;
-  if (!links.length){ forced = null; updateHUD(); checkStuck(); return; }
-  /* 방금 온 길은 되도록 피한다 — 한 자리에서 튕기지 않도록 */
-  let pool = links.filter(l => l.to !== forced.from);
+  if (!links.length){ forced = null; computePaths(); updateHUD(); checkStuck(); return; }
+
+  /* 후퇴 없음 — 지나온 자리는 다시 밟지 않는다.
+     남은 갈래 중 출발점에서 가장 멀어지는 쪽만 남기고 그 안에서 무작위로 고른다. */
+  let pool = links.filter(l => !forced.seen.has(l.to));
+  if (!pool.length) pool = links.filter(l => l.to !== forced.from);
   if (!pool.length) pool = links;
-  const link = pool[Math.floor(Math.random() * pool.length)];
+  let far = -1;
+  for (const l of pool){ const h = forced.hops.get(l.to); if (h !== undefined && h > far) far = h; }
+  const best = pool.filter(l => forced.hops.get(l.to) === far);
+  const link = (best.length ? best : pool)[Math.floor(Math.random() * (best.length ? best.length : pool.length))];
+  forced.seen.add(link.to);
   forced.from = cur;
   forced.left--;
   link.e.visited = true;
@@ -1423,106 +1556,28 @@ function forcedStep(){
 }
 
 /* ---------- 담기 / 지나치기 ---------- */
-/* 이미 담은 번호와 견주어 '지나칠 이유'를 한 줄로 알려준다.
-   게임 진행을 돕는 연출일 뿐 당첨 확률과는 무관하다. */
-const bandOf = n => Math.min(4, Math.floor((n-1)/10));
-const bandName = b => (b*10+1) + '~' + Math.min(b*10+10, 45);
-function memoFor(num){
-  const cur = opened;
-  if (!cur.length) return { tone:'', txt:'첫 숫자다. 무엇을 담아도 열려 있다.' };
-  const b = bandOf(num);
-  const same = cur.filter(n => bandOf(n) === b).length;
-  if (same >= 2)
-    return { tone:'warn', txt:'이미 ' + bandName(b) + ' 구간을 ' + same + '개 담았다 — 번호가 한쪽으로 쏠린다' };
-  const near = cur.filter(n => Math.abs(n - num) === 1);
-  if (near.length)
-    return { tone:'warn', txt: near[0] + '번과 붙는 연속 번호다' };
-  const total = cur.length + 1;
-  const odd = cur.filter(n => n % 2).length + (num % 2 ? 1 : 0);
-  if (total >= 4 && (odd === total || odd === 0))
-    return { tone:'warn', txt:'담으면 ' + (odd === total ? '홀수' : '짝수') + '만 ' + total + '개 — 홀짝이 치우친다' };
-  if (same === 0)
-    return { tone:'good', txt:'아직 비어 있는 ' + bandName(b) + ' 구간이다 — 고르게 퍼진다' };
-  return { tone:'', txt:'무난하게 섞인다' };
-}
-
-function showChoice(node){
-  const st = ballStyle(node.num), gr = node.grade;
-  const bEl = el('chBall');
-  bEl.textContent = node.num;
-  bEl.style.background = st.bg;
-  bEl.classList.toggle('d', st.dark);
-
-  const gEl = el('chGrade');
-  gEl.textContent = gr.label + ' ' + gr.name;
-  gEl.style.color = gr.trim;
-  el('chNum').textContent = node.num;
-  el('chEffect').textContent = gr.tag + ' · ' + gr.desc;
-  el('chGrade').title = '등급은 숫자와 무관하게 무작위로 배치된다';
-
-  const m = memoFor(node.num);
-  const mEl = el('chMemo');
-  mEl.textContent = '💡 ' + m.txt;
-  mEl.className = 'cmemo ' + m.tone;
-
-  el('chSub').textContent = '담으면 ' + (opened.length + 1) + ' / ' + GOAL +
-                            (cssW < 560 ? ' · 지나치면 다시 못 연다' : ' · 지나치면 이 상자는 다시 열 수 없다');
-  const sb = el('skipBtn');
-  const sc = skipCost(node);
-  sb.querySelector('em').textContent = sc ? sc + '보' : '공짜';
-  sb.disabled = steps < sc;
-  sb.title = sb.disabled ? '걸음이 모자라 지나칠 수 없다' : '';
-  el('choice').classList.add('on');
-}
-function hideChoice(){ el('choice').classList.remove('on'); }
-
-function takeChest(){
-  if (!pending) return;
-  const node = pending;
-  node.taken = true;
-  opened.push(node.num);
-  pending = null; hideChoice();
-
-  const gr = node.grade;
-  if (gr.bonus > 0) steps += gr.bonus;
-  if (gr.key === 'gold') unlockAch('gold_take');   /* 별은 배치할 때 이미 소모됐다 */
-  sfxTake();
+/* ---------- 여섯을 채우면 숫자를 드러낸다 ----------
+   상자를 여는 동안에는 숫자를 일절 보여주지 않는다. 여섯째를 담는 순간
+   지도의 상자와 슬롯에 번호가 한꺼번에 드러나고, 2초 뒤 결과로 넘어간다. */
+const REVEAL_MS = 2000;
+function beginReveal(){
+  revealed = true;
+  running = false;
+  mover = null; forced = null; travel = null;
+  /* 숲 전체로 물러나 45개 상자의 속을 한꺼번에 보여준다 */
+  overview = true; freeLook = false;
+  targetVS = fitScale();
+  el('mapBtn').classList.add('on');
+  el('hud').classList.remove('free');
   renderSlots();
-  if (opened.length >= GOAL){ updateHUD(); finish(false); return; }
-  toast('숫자 ' + node.num + ' 담았다' + (gr.bonus ? ' · ' + gr.name + ' 걸음 +' + gr.bonus : '') +
-        ' · ' + (GOAL - opened.length) + '개 남음');
-  updateHUD();
-  checkStuck();
-}
-function skipCost(node){
-  let c = node.grade.skip;
-  if (buff.key === 'normal') c = Math.min(c, 1);     // 눈썰미: 상급도 1보
-  return c;
-}
-function skipChest(){
-  if (!pending) return;
-  let cost = skipCost(pending);
-  if (steps < cost){
-    sfxNo(); toast('걸음이 모자라 지나칠 수 없다. 담는 수밖에.');
-    return;
-  }
-  let free = false;
-  if (cost > 0 && buff.key === 'good' && Math.random() < .35){ free = true; cost = 0; }
-  const node = pending;
-  node.taken = false; node.skipped = true;
-  steps -= cost; skipped++;
-  pending = null; hideChoice();
-  if (free){ sfxLuck(); toast('🍀 순풍! ' + node.num + '번을 걸음 없이 두고 간다'); }
-  else {
-    sfxSkip();
-    toast('🍃 ' + node.num + '번을 두고 간다' + (cost ? ' (걸음 -' + cost + ')' : ' (공짜)'));
-  }
-  updateHUD();
-  checkStuck();
+  sfxDone();
+  [523,659,784,1046].forEach((f,i) => tone(f,.4,'triangle',.1,i*.09));
+  toast('🔓 <b>숲이 속을 드러낸다</b> — 담은 여섯은 테두리로 표시');
+  setTimeout(() => finish(false), REVEAL_MS);
 }
 
 function checkStuck(){
-  if (finished || mover || pending) return;
+  if (finished || mover || revealed) return;
   const ok = cur.adj.some(l => edgeCost(l.e) <= steps);
   if (!ok){
     running = false;
@@ -1556,7 +1611,7 @@ function finish(byWind){
   const issuedAt = Date.now();
   lastResult = { main: nums, date, round, id: issueId(), issuedAt,
                  checked:false, rank:0, hit:0, prize:0,
-                 buff: buff.name, em: buff.em, skipped,
+                 buff: buff.name, em: buff.em,
                  moves: moveCount, left: steps, sec: Math.round(elapsed), wind: !!byWind };
   saveHistory(lastResult);
 
@@ -1566,7 +1621,7 @@ function finish(byWind){
     : '오솔길을 따라 상자 여섯을 모두 열었습니다.';
   /* 업적 · 순위표 (Play 연동 지점) */
   unlockAch('first_run');
-  if (skipped >= 5) unlockAch('picky');
+  if (moveCount >= 12) unlockAch('picky');
   if (!byWind && steps <= 2) unlockAch('shoestring');
   if (loadHistory().length >= 5) unlockAch('veteran');
   bumpIssued();
@@ -1576,16 +1631,19 @@ function finish(byWind){
   el('resultBalls').innerHTML = nums.map(ballHTML).join('');
   el('resultMeta').innerHTML =
     '<b style="color:#8a7f66">제 ' + round + '회 응모</b> · 추첨 ' + fmtDate(drawTimeOf(round)) + '<br>' +
-    date + '<br>' + buff.em + ' ' + buff.name + ' · 이동 ' + moveCount + '회 · 지나친 상자 ' +
-    skipped + '개' + (diceRolls ? ' · 🎲 ' + diceRolls + '번' : '') +
-    (adSteps ? ' · 📺 걸음 +' + adSteps : '') + (goldenMode ? ' · 🗿 황금모드' : '') +
-    ' · 남은 걸음 ' + steps + '보 · ' + fmtTime(elapsed);
+    date + '<br>' +
+    [buff.em + ' ' + buff.name,
+     '이동 ' + moveCount + '회',
+     diceRolls ? '🎲 ' + diceRolls + '번' : '',
+     adSteps   ? '📺 걸음 +' + adSteps : '',
+     goldenMode ? '🗿 황금모드' : '',
+     '남은 걸음 ' + steps + '보',
+     fmtTime(elapsed)].filter(Boolean).join(' · ');
   setTimeout(() => openModal('resultModal'), byWind ? 200 : 900);
 }
 
 function windFill(){
   mover = null;                                   // 이동 중이었다면 즉시 중단
-  pending = null; hideChoice();
   const rest = nodes.filter(n => n.chest && !n.opened);
   while (opened.length < GOAL && rest.length){
     const i = secRand(rest.length);
@@ -1633,14 +1691,11 @@ function clampCam(){
   camY = clamp(camY, MAP.h/2 - my + hh*0.35, MAP.h/2 + my - hh*0.35);
 }
 function tapAt(sx, sy){
-  if (!running || finished || mover || pending) return;
+  if (!running || finished || mover || revealed) return;
   const w = screenToWorld(sx, sy);
   const n = nodeAt(w.x, w.y);
   if (!n) return;
-  const link = cur.adj.find(l => l.to === n);
-  if (link) moveTo(link);
-  else if (n === cur) toast('이미 이 자리에 서 있다');
-  else { sfxNo(); toast('오솔길로 이어진 상자만 갈 수 있다'); }
+  travelTo(n);
 }
 function recenter(){
   freeLook = false;
@@ -1727,15 +1782,10 @@ const DIRK = {
 };
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
-  if (pending){
-    if (k === 'enter' || k === '1' || k === 'y'){ e.preventDefault(); takeChest(); }
-    else if (k === 'escape' || k === '2' || k === 'n'){ e.preventDefault(); skipChest(); }
-    return;
-  }
   if (k === 'm'){ toggleMap(); return; }
   if (!DIRK[k]) return;
   e.preventDefault();
-  if (!running || finished || mover) return;
+  if (!canTravel()) return;
   const d = DIRK[k];
   let best = null, bs = .35;
   for (const l of cur.adj){
@@ -1743,7 +1793,7 @@ window.addEventListener('keydown', e => {
     const dot = (dx/m)*d[0] + (dy/m)*d[1];
     if (dot > bs){ bs = dot; best = l; }
   }
-  if (best) moveTo(best);
+  if (best) travelTo(best.to);
   else toast('그 방향에는 오솔길이 없다');
 });
 
@@ -1915,25 +1965,10 @@ function drawTrails(time){
     ctx.lineWidth = ok ? 3.4 : 2.4;
     edgePath(l.e); ctx.stroke();
     ctx.restore();
-    /* 비용 표시 — 축소해도 읽히게 확대율을 보정한다 */
-    if (vs > .3){
-      const z = clamp(1/vs, 1, 2.2);
-      const m = bez(l.e, l.e.a, .5);
-      ctx.fillStyle = ok ? 'rgba(10,22,14,.9)' : 'rgba(50,16,12,.9)';
-      ctx.beginPath(); ctx.roundRect(m.x-15*z, m.y-11*z, 30*z, 21*z, 10*z); ctx.fill();
-      ctx.strokeStyle = ok ? 'rgba(233,196,106,.65)' : 'rgba(255,120,90,.6)';
-      ctx.lineWidth = 1.2*z; ctx.stroke();
-      ctx.fillStyle = ok ? '#f6dda1' : '#ff9b83';
-      ctx.font = '900 ' + (12*z).toFixed(1) + 'px system-ui,sans-serif';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(l.e.cost + '보', m.x, m.y);
-    }
+
   }
 }
 
-const BAND = n => n <= 15 ? { t:'1~15',  c:'#8fd3f4' }
-                : (n <= 30 ? { t:'16~30', c:'#f6dda1' }
-                :            { t:'31~45', c:'#ff9c8a' });
 
 /* 주사위 눈을 상자 뚜껑 위에 찍는다 */
 const PIPS = {
@@ -1954,8 +1989,28 @@ function drawDie(x, y, size, v, dark){
   }
 }
 
+/* 지금 위치에서 이 상자까지 몇 보인지 — 멀리 있는 상자도 눌러서 갈 수 있다 */
+function drawReach(n, time){
+  if (revealed || finished) return;
+  if (!paths || n === cur || vs <= .3) return;
+  const d = reachCost(n);
+  if (d === undefined || d === Infinity || d > steps) return;
+  const z = clamp(1/vs, 1, 2.2);
+  const txt = d + '보';
+  ctx.font = '900 ' + (11*z).toFixed(1) + 'px system-ui,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(txt).width + 14*z;
+  const y = n.y - 40*z;
+  ctx.fillStyle = 'rgba(10,22,14,.88)';
+  ctx.beginPath(); ctx.roundRect(n.x - w/2, y - 9*z, w, 18*z, 9*z); ctx.fill();
+  ctx.strokeStyle = 'rgba(233,196,106,.55)'; ctx.lineWidth = 1.1*z; ctx.stroke();
+  ctx.fillStyle = '#f6dda1';
+  ctx.fillText(txt, n.x, y);
+}
+
 function drawNode(n, time){
   const isCur = n === cur;
+  if (!n.opened && !n.used) drawReach(n, time);
   if (n.dice){
     const z = clamp(1/vs, 1, 1.8);
     const live = !n.used;
@@ -2018,7 +2073,7 @@ function drawNode(n, time){
     ctx.fillStyle = '#f6dda1'; ctx.font = '900 ' + (11*z).toFixed(1) + 'px system-ui,sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('숲 입구', n.x, n.y-32*z-4);
-  } else if (!n.opened){
+  } else if (!n.opened && !revealed && !finished){
     const g = n.grade || GRADES.low;
     const isGold = g.key === 'gold';
     const bob = Math.sin(time*.0022 + n.bob) * (isGold ? 2.6 : 1.6);
@@ -2055,11 +2110,11 @@ function drawNode(n, time){
                    life:1, max:rnd(.5,1.1), size:rnd(1,2.3), col:'#fff0b8' });
     }
     /* 인접한 상자에는 등급(+나침반 버프면 번호 구간)을 글자로 알려준다 */
-    if (cur && cur.adj.some(l => l.to === n) && vs > .3){
+    /* 숫자에 대한 힌트는 어떤 것도 보여주지 않는다.
+       등급 글자는 나침반 버프에서만 — 다른 대답은 색으로만 판단한다. */
+    if (cur && buff.key === 'normal' && cur.adj.some(l => l.to === n) && vs > .3){
       const z = clamp(1/vs, 1, 2.2);
-      const showBand = buff.key === 'normal';
-      const b = BAND(n.num);
-      const txt = g.name + (showBand ? (cssW < 560 ? ' ' : ' · 번호 ') + b.t : '');
+      const txt = g.name;
       ctx.font = '800 ' + (11*z).toFixed(1) + 'px system-ui,sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const w = ctx.measureText(txt).width + 16*z;
@@ -2071,53 +2126,79 @@ function drawNode(n, time){
     }
   } else {
     const age = (performance.now() - (n.openT||0))/1000;
-    const sc  = clamp(age/.35, 0, 1);
-    const isPending = (n === pending);
-    const isSkip = n.opened && !n.taken && !isPending;
-    const bob = isSkip ? 0 : Math.sin(time*.003 + n.bob)*2.4;
+    const sc  = n.opened ? clamp(age/.35, 0, 1) : 1;
+    const mine = !!n.taken;                       /* 내가 담은 여섯 */
+    const bob = mine ? Math.sin(time*.003 + n.bob)*2.4 : 0;
     const st  = ballStyle(n.num);
     shadowE(n.x, n.y+4, 16, 5.5, .3);
-    const z = clamp(1/vs, 1, 1.7);
+    /* 전체 지도에서 45개를 한눈에 읽을 수 있도록 공개 때는 크게 그린다 */
+    const z = revealed ? clamp((11/vs)/19, 1, 5) : clamp(1/vs, 1, 1.7);
     ctx.save();
-    ctx.translate(n.x, n.y - (isSkip ? 6 : 12)*z + bob);
+    ctx.translate(n.x, n.y - 12*z + bob);
     ctx.scale((.4 + sc*.6)*z, (.4 + sc*.6)*z);
-    if (isSkip) ctx.globalAlpha = .42;
-    const halo = isPending ? .62 + .3*Math.sin(time*.007) : (isSkip ? 0 : .42);
+    if (!mine) ctx.globalAlpha = .5;
+    const halo = mine ? .42 : 0;
     if (halo > 0){
-      const rr = isPending ? 42 : 34;
+      const rr = 34;
       const g = ctx.createRadialGradient(0,0,2,0,0,rr);
       g.addColorStop(0, 'rgba(255,238,180,' + halo + ')');
       g.addColorStop(1, 'rgba(255,238,180,0)');
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(0,0,rr,0,6.2832); ctx.fill();
     }
-    ctx.fillStyle = isSkip ? '#5a675f' : st.bg;
+    /* 여섯을 채우기 전에는 숫자를 감춘 봉인 구슬로만 보인다 */
+    const show = revealed || finished;
+    ctx.fillStyle = show ? st.bg : '#c8a24a';
     ctx.beginPath(); ctx.arc(0,0,19,0,6.2832); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.36)';
     ctx.beginPath(); ctx.ellipse(-6,-7,6.5,4.2,-.5,0,6.2832); ctx.fill();
-    ctx.fillStyle = isSkip ? 'rgba(255,255,255,.78)' : (st.dark ? '#2b2210' : '#fff');
-    ctx.font = '900 18px system-ui,sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(n.num), 0, 1);
-    if (isSkip){
-      ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2.4;
-      ctx.beginPath(); ctx.moveTo(-13,13); ctx.lineTo(13,-13); ctx.stroke();
-      ctx.globalAlpha = .9;
-      ctx.fillStyle = '#a9bdb0'; ctx.font = '800 9px system-ui,sans-serif';
-      ctx.fillText('지나침', 0, 29);
+    if (show){
+      ctx.fillStyle = st.dark ? '#2b2210' : '#fff';
+      ctx.font = '900 18px system-ui,sans-serif';
+      ctx.fillText(String(n.num), 0, 1);
+    } else {
+      ctx.fillStyle = 'rgba(60,44,14,.85)';   /* 봉인 표식 */
+      ctx.beginPath(); ctx.roundRect(-6, -3, 12, 9, 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(60,44,14,.85)'; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(0, -3, 4, Math.PI, 0); ctx.stroke();
     }
     if (n.wind){
       ctx.fillStyle = '#bfe6c6'; ctx.font = '800 9px system-ui,sans-serif';
       ctx.fillText('바람', 0, 28);
     }
     ctx.restore();
-    if (isPending){
-      const pu = .5 + .5*Math.sin(time*.008);
-      ctx.strokeStyle = 'rgba(246,221,161,' + (.5+pu*.45) + ')';
-      ctx.lineWidth = 2.8; ctx.setLineDash([6,6]);
-      ctx.lineDashOffset = -time*.05;
-      ctx.beginPath(); ctx.arc(n.x, n.y-12, 34+pu*4, 0, 6.2832); ctx.stroke();
-      ctx.setLineDash([]);
+    /* 이 상자에서 토템 조각이 나왔다면 공개 때 그 자리에 남긴다 */
+    if (n.totem !== undefined && (revealed || finished)){
+      const z2 = revealed ? clamp((11/vs)/19, 1, 5) : clamp(1/vs, 1, 1.8);
+      const tx = n.x, ty = n.y - 58*z2;
+      const pc = TOTEM_PARTS[n.totem];
+      ctx.save();
+      const gg = ctx.createRadialGradient(tx, ty, 2, tx, ty, 26*z2);
+      gg.addColorStop(0, 'rgba(205,180,255,.45)'); gg.addColorStop(1, 'rgba(205,180,255,0)');
+      ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(tx, ty, 26*z2, 0, 6.2832); ctx.fill();
+      /* 작은 토템 — 세 칸 위로 쌓고 꼭대기에 관 */
+      for (let k = 0; k < 3; k++){
+        const w = (17 - k*2.5)*z2, h = 7*z2, yy = ty + 6*z2 - k*(h+1.5*z2);
+        ctx.fillStyle = k === 2 ? pc.c : (k ? '#5b4785' : '#48376b');
+        ctx.beginPath(); ctx.roundRect(tx - w/2, yy - h, w, h, 1.6*z2); ctx.fill();
+      }
+      ctx.fillStyle = '#fff0b8';
+      ctx.beginPath();
+      ctx.moveTo(tx - 5*z2, ty - 15*z2); ctx.lineTo(tx, ty - 21*z2);
+      ctx.lineTo(tx + 5*z2, ty - 15*z2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#cdb4ff';
+      ctx.font = '800 ' + (9.5*z2).toFixed(1) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🗿 ' + pc.n, tx, ty + 16*z2);
+      ctx.restore();
+    }
+    if (mine && (revealed || finished)){   /* 내가 담은 여섯은 테두리로 구분 */
+      const pu = .5 + .5*Math.sin(time*.009);
+      const zr = revealed ? clamp((11/vs)/19, 1, 5) : 1;
+      ctx.strokeStyle = 'rgba(246,221,161,' + (.55+pu*.4) + ')';
+      ctx.lineWidth = 3 * zr;
+      ctx.beginPath(); ctx.arc(n.x, n.y-12*zr, (23+pu*4)*zr, 0, 6.2832); ctx.stroke();
     }
   }
   if (isCur){
@@ -2247,11 +2328,17 @@ function renderSlots(){
     const d = document.createElement('div');
     d.className = 'slot';
     if (i < opened.length){
-      const n = opened[i], st = ballStyle(n);
       d.classList.add('filled');
-      d.style.background = st.bg;
-      d.style.color = st.dark ? '#241d0c' : '#fff';
-      d.textContent = n;
+      if (revealed || finished){
+        const n = opened[i], st = ballStyle(n);
+        d.style.background = st.bg;
+        d.style.color = st.dark ? '#241d0c' : '#fff';
+        d.textContent = n;
+      } else {                              /* 숫자를 감춘 봉인 상태 */
+        d.style.background = '#c8a24a';
+        d.style.color = '#3c2c0e';
+        d.textContent = '🔒';
+      }
     } else d.textContent = '?';
     slotsEl.appendChild(d);
   }
@@ -2358,7 +2445,7 @@ const writeJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); 
 const ACHS = [
   { id:'first_run',  ico:'🌲', name:'첫 탐험',        desc:'번호 여섯을 처음으로 완성한다' },
   { id:'gold_take',  ico:'⭐', name:'행운을 줍다',    desc:'황금 상자를 담는다' },
-  { id:'picky',      ico:'🍃', name:'까다로운 눈',    desc:'한 판에서 상자를 5개 이상 지나친다' },
+  { id:'picky',      ico:'🍃', name:'먼 길',          desc:'한 판에서 12번 이상 이동한다' },
   { id:'shoestring', ico:'👣', name:'아슬아슬',        desc:'남은 걸음 2보 이하로 완주한다' },
   { id:'veteran',    ico:'🏅', name:'숲의 단골',      desc:'탐험을 5번 완주한다' },
   { id:'dice_six',   ico:'🎲', name:'숲의 장난',      desc:'주사위에서 6이 나온다' },
@@ -2701,6 +2788,12 @@ const Play = {
   cloudSave(payload){
     if (NATIVE && this.signedIn) window.AndroidBridge.saveGame(JSON.stringify(payload));
   },
+  /* 배너 — 실제 앱에서는 AdMob BannerView 를 붙였다 떼면 된다 */
+  showBanner(){ if (NATIVE && window.AndroidBridge.showBanner) window.AndroidBridge.showBanner(); },
+  hideBanner(){ if (NATIVE && window.AndroidBridge.hideBanner) window.AndroidBridge.hideBanner(); },
+  exitApp(){
+    if (NATIVE && window.AndroidBridge.exitApp) window.AndroidBridge.exitApp();
+  },
   cloudLoad(){
     if (NATIVE && this.signedIn) return new Promise(res => {
       window.onGameLoaded = j => { try { res(JSON.parse(j)); } catch(e){ res(null); } };
@@ -2874,8 +2967,8 @@ function updateTotemUI(){
     : '행운의 토템 ' + n + ' / ' + TOTEM_N;
   el('totemNote').innerHTML = goldenTickets()
     ? '숲에 들어가기 전 화면에서 사용할 수 있습니다.'
-    : (n ? '남은 조각 <b>' + (TOTEM_N - n) + '개</b> · 상자를 열 때 무작위로 떨어집니다.'
-         : '상자를 열 때 조각이 무작위로 떨어집니다. 12조각을 모으면 <b>전체 황금상자 모드</b>가 됩니다.');
+    : (n ? '남은 조각 <b>' + (TOTEM_N - n) + '개</b> · <b>한 판에 한 조각</b>씩, 어느 상자에서 나올지는 무작위입니다.'
+         : '<b>한 판에 한 조각</b>씩 나옵니다. 어느 상자인지는 무작위. 12조각을 모으면 <b>전체 황금상자 모드</b>가 됩니다.');
   const chip = el('totemChip');
   chip.style.display = (n || goldenTickets()) ? '' : 'none';
   chip.innerHTML = goldenTickets()
@@ -2915,6 +3008,47 @@ el('lbClose').addEventListener('click', () => closeModal('lbModal'));
 el('tabRound').addEventListener('click', () => setTab('round'));
 el('tabAll').addEventListener('click', () => setTab('all'));
 
+/* ---------- 종료 ----------
+   앱 빌드에서는 AndroidBridge.exitApp() (또는 Capacitor App.exitApp) 로 실제 종료된다.
+   브라우저에서는 스크립트가 연 창이 아니면 닫을 수 없어, 그 사실을 그대로 알린다. */
+function openExit(){
+  const mid = running && !finished;
+  el('exitSub').innerHTML = mid
+    ? '진행 중인 판이 있습니다. 지금 나가면 <b>이번 판은 사라집니다.</b><br>' +
+      '(발행된 티켓은 완주해야 만들어집니다)'
+    : '언제든 다시 이어서 하실 수 있습니다.';
+  openModal('exitModal');
+}
+function goHome(){
+  closeModal('exitModal');
+  document.body.classList.remove('playing');
+  Play.hideBanner();
+  running = false; finished = false; mover = null; forced = null;
+  revealed = false; travel = null; paths = null;
+  el('diceLayer').classList.remove('on');
+  document.body.classList.remove('dicing');
+  ['resultModal','failModal','starModal','buffModal','histModal','achModal','lbModal']
+    .forEach(m => closeModal(m));
+  updateGoldUI(); updateTotemUI(); updateHUD();
+  openModal('luckModal');
+}
+function quitApp(){
+  cloudSync();
+  if (NATIVE && window.AndroidBridge.exitApp){ window.AndroidBridge.exitApp(); return; }
+  closeModal('exitModal');
+  try { window.close(); } catch(e){}
+  setTimeout(() => {
+    if (!document.hidden)
+      toast('브라우저에서는 창을 닫을 수 없습니다.<br>' +
+            '<span style="font-size:11px;color:#9cb3a4">앱으로 설치하면 여기서 정상 종료됩니다</span>');
+  }, 350);
+}
+el('exitBtn').addEventListener('click', openExit);
+el('luckExitBtn').addEventListener('click', openExit);
+el('exitStay').addEventListener('click', () => closeModal('exitModal'));
+el('exitHome').addEventListener('click', goHome);
+el('exitApp').addEventListener('click', quitApp);
+
 /* ---------- 목업 개발자 패널 ---------- */
 el('devBtn').addEventListener('click', () => openModal('devModal'));
 el('devClose').addEventListener('click', () => closeModal('devModal'));
@@ -2937,7 +3071,7 @@ el('devReset').addEventListener('click', () => {
 });
 
 /* ---------- 안드로이드 뒤로가기 ---------- */
-const MODALS = ['adModal','totemModal','devModal','lbModal','achModal','histModal','failModal','resultModal','starModal','buffModal'];
+const MODALS = ['adModal','totemModal','exitModal','devModal','lbModal','achModal','histModal','failModal','resultModal','starModal','buffModal'];
 function openModal(id){
   el(id).classList.add('on');
   try { history.pushState({ modal:id }, ''); } catch(e){}
@@ -2945,7 +3079,11 @@ function openModal(id){
 function closeModal(id){ el(id).classList.remove('on'); }
 window.addEventListener('popstate', () => {
   const top = MODALS.find(m => el(m).classList.contains('on'));
-  if (!top) return;
+  if (!top){                          /* 최상위에서 뒤로가기 → 종료 확인 */
+    if (!el('luckModal').classList.contains('on') || running) openExit();
+    else openExit();
+    return;
+  }
   if (top === 'adModal') endAd('dismissed');
   else closeModal(top);
 });
@@ -2968,7 +3106,7 @@ function renderGradeLegend(){
     '<div class="sm">상자 색으로 등급을 알 수 있다 — 어디로 갈지, 무엇을 지나칠지의 기준</div></span></div>' +
     rows +
     '<div class="bl"><span class="k" style="color:#cdb4ff">🗿 행운의 토템</span><span class="v">' +
-    '상자를 열 때 <b>12조각</b> 중 하나가 무작위로 떨어진다 · 다 모으면 ' +
+    '<b>한 판에 한 조각</b> · 어느 상자에서 나올지는 무작위 · 12조각을 모으면 ' +
     '<b>전체 황금상자 모드</b> 1회권이 되고 토템은 사라진다</span></div>' +
     '<div class="bl"><span class="k" style="color:#cdb4ff">🎲 주사위 상자</span><span class="v">' +
     '오솔길 <b>중간</b>에 6개 · 열면 1~6이 나오고 그 수만큼 <b>걸음 없이</b> 무작위로 끌려간다' +
@@ -3025,7 +3163,7 @@ function renderStarPick(){
     '보유 별 <b>' + goldStock + '개</b> → 이번 판에 <b>' + placeGold + '개</b> 배치 · ' +
     '남는 별 <b>' + (goldStock - placeGold) + '개</b><br>' +
     (placeGold
-      ? '황금 상자는 담으면 <b>걸음 +4</b>, 지나치기는 공짜입니다.'
+      ? '황금 상자는 담으면 <b>걸음 +4</b>입니다.'
       : '이번 판에는 황금 상자가 나오지 않습니다. 별은 그대로 쌓입니다.');
   el('starGo').textContent = placeGold
     ? '🌲 별 ' + placeGold + '개를 놓고 들어가기'
@@ -3052,6 +3190,7 @@ el('starGo').addEventListener('click', () => {
 });
 el('againBtn').addEventListener('click', () => { closeModal('resultModal'); openStarPick(); });
 el('reAskBtn').addEventListener('click', () => {
+  document.body.classList.remove('playing'); Play.hideBanner();
   ['resultModal','failModal'].forEach(m => el(m).classList.remove('on'));
   el('luckModal').classList.add('on');
   running = false;
@@ -3061,8 +3200,6 @@ el('adStepBtn').addEventListener('click', watchAdForSteps);
 el('bankBtn').addEventListener('click', useBanked);
 el('stepChip').addEventListener('click', useBanked);
 el('windBtn').addEventListener('click', windFill);
-el('takeBtn').addEventListener('click', takeChest);
-el('skipBtn').addEventListener('click', skipChest);
 el('homeBtn').addEventListener('click', recenter);
 el('mapBtn').addEventListener('click', toggleMap);
 el('histBtn').addEventListener('click', () => { renderHistory(); openModal('histModal'); });

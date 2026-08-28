@@ -76,7 +76,9 @@ const NATIVE = !!(window.AndroidBridge && window.AndroidBridge.showRewardedAd);
 | `Play.showRewardedAd()` | AdMob `RewardedAd.show()` | `index.html` · `Play` 객체 |
 | `Play.signIn()` / `signOut()` | Play Games Services v2 `GamesSignInClient` | 〃 |
 | `Play.unlockAchievement(id)` | `AchievementsClient.unlock(id)` | 〃 |
-| `Play.submitScore(v)` | `LeaderboardsClient.submitScore(id, v)` | 〃 |
+| `Play.submitScore(v, tag)` | `LeaderboardsClient.submitScore(id, v, tag)` | 〃 |
+| `Play.cloudSave/cloudLoad` | Snapshots (저장된 게임) | 〃 |
+| `quitApp()` | `finishAndRemoveTask()` / Capacitor `App.exitApp()` | 〃 |
 | `mockRewardedAd()` | 통째로 삭제 가능 | 〃 |
 | `DEV` 객체 · `#devBtn` | 배포 빌드에서 제거 | 〃 |
 
@@ -90,7 +92,10 @@ class AndroidBridge(private val activity: MainActivity) {
     @JavascriptInterface fun signIn()
     @JavascriptInterface fun signOut()
     @JavascriptInterface fun unlockAchievement(id: String)
-    @JavascriptInterface fun submitScore(value: Int)
+    @JavascriptInterface fun submitScore(value: Int, tag: String)
+    @JavascriptInterface fun saveGame(json: String)        // Snapshots 저장
+    @JavascriptInterface fun loadGame()                    // → window.onGameLoaded(json)
+    @JavascriptInterface fun exitApp()                     // finishAndRemoveTask() 등
 }
 webView.addJavascriptInterface(AndroidBridge(this), "AndroidBridge")
 ```
@@ -211,6 +216,20 @@ Play.submitScore(v, tag)  // → LeaderboardsClient.submitScore    : 최고 적�
 `6개=60 · 5+보너스=51 · 5개=50 · 4개=40 · 3개=30`. 큰 값이 위로 가도록
 `정렬: 높은 점수` 리더보드로 만드세요. 저장 묶음(`cloudPayload()`)에는
 별 보유량·발행 누계·적중 로그·업적·최근 1회차 티켓만 들어갑니다.
+
+### 종료 처리
+
+앱에는 종료 수단이 두 가지 있습니다 — 좌상단 **⏻ 버튼**과 시작 화면의
+**게임 종료**. 둘 다 확인 화면을 거쳐 「계속하기 / 시작 화면으로 / 앱 종료」를
+고르게 합니다. 진행 중인 판이 있으면 사라진다고 미리 알립니다.
+
+**안드로이드 뒤로가기**는 열린 모달을 하나씩 닫고, 더 닫을 것이 없으면
+같은 종료 확인 화면을 띄웁니다. 뒤로가기로 앱이 곧장 꺼지지 않습니다.
+
+`quitApp()` 은 `AndroidBridge.exitApp()` 이 있으면 그것을 부르고, 없으면
+`window.close()` 를 시도한 뒤 실패 시 **"브라우저에서는 창을 닫을 수 없다"**
+고 그대로 알립니다. Capacitor 라면 `@capacitor/app` 의 `App.exitApp()` 을
+브릿지에 연결하면 됩니다.
 
 ### 광고 보상 설계
 

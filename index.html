@@ -1463,8 +1463,10 @@ function arrive(node){
   computePaths();
   /* 주사위에 휩쓸려 가는 중 — 지나치는 상자는 열지 않는다 */
   if (forced){
-    if (forced.left > 0){ forcedStep(); return; }
+    if (forced.left > 0 && forcedStep()) return;
+    const stopped = forced.left;            /* 남은 칸이 있는데 멈췄다 = 막다른 길 */
     forced = null;
+    if (stopped > 0) toast('🎲 길이 막혔다 — <b>' + stopped + '칸</b>을 남기고 멈춘다');
   }
   /* 최단거리 이동 경유 중 — 도착지에서만 상자를 연다 */
   if (travel){
@@ -1601,19 +1603,19 @@ function startForced(n){
   freeLook = false; el('hud').classList.remove('free');
   forced = { left: n, from: null, hops: hopsFrom(cur), seen: new Set([cur]) };
   toast('🎲 ' + n + '칸 이동 — 걸음 소모 없음');
-  forcedStep();
+  if (!forcedStep()){ forced = null; computePaths(); updateHUD(); checkStuck(); }
 }
 
+/* 한 칸 밀어낸다. 밀어낼 곳이 없으면 false — 그 자리에서 멈춘다. */
 function forcedStep(){
-  if (!forced || forced.left <= 0){ forced = null; computePaths(); updateHUD(); checkStuck(); return; }
+  if (!forced || forced.left <= 0) return false;
   const links = cur.adj;
-  if (!links.length){ forced = null; computePaths(); updateHUD(); checkStuck(); return; }
+  if (!links.length) return false;
 
-  /* 후퇴 없음 — 지나온 자리는 다시 밟지 않는다.
+  /* 후퇴 없음 — 지나온 자리는 다시 밟지 않는다. 막다른 길이면 되돌아가지 않고 멈춘다.
      남은 갈래 중 출발점에서 가장 멀어지는 쪽만 남기고 그 안에서 무작위로 고른다. */
-  let pool = links.filter(l => !forced.seen.has(l.to));
-  if (!pool.length) pool = links.filter(l => l.to !== forced.from);
-  if (!pool.length) pool = links;
+  const pool = links.filter(l => !forced.seen.has(l.to));
+  if (!pool.length) return false;
   let far = -1;
   for (const l of pool){ const h = forced.hops.get(l.to); if (h !== undefined && h > far) far = h; }
   const best = pool.filter(l => forced.hops.get(l.to) === far);
@@ -1625,6 +1627,7 @@ function forcedStep(){
   mover = { e: link.e, from: cur, to: link.to, t: 0,
             dur: Math.max(.22, link.e.len / (WALK_SPEED * 1.5)) };
   sfxStep();
+  return true;
 }
 
 /* ---------- 담기 / 지나치기 ---------- */

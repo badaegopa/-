@@ -681,12 +681,11 @@
     <h2>🧺 상자를 정리한다</h2>
     <p class="sub">마음에 걸리는 상자는 <b style="color:#f6dda1">버리고</b> 다시 찾을 수 있습니다.<br>
     버리는 데 <b>걸음은 들지 않고</b>, 개수 제한도 없습니다.</p>
-    <div class="trimtip">지도에는 아직 <b>숫자가 공개되지 않았습니다</b> —
-    🗿 토템 · ✦ 천사 · ⭐ 행운의 상자 자리만 드러나 있습니다</div>
+
     <div class="trimgrid" id="trimGrid"></div>
     <div class="trimtip">상자를 눌러 <b style="color:#ff7264">✕</b> 표시하면 버립니다 · 다시 누르면 되돌립니다</div>
     <div class="starinfo" id="trimInfo"></div>
-    <button class="cta" id="trimKeepBtn">✅ 이대로 확정 · 숫자 공개</button>
+    <button class="cta" id="trimKeepBtn">✅ 이대로 확정</button>
     <button class="ghost" id="trimDropBtn">🗑️ 선택한 상자 버리고 다시 찾기</button>
   </div>
 </div>
@@ -1629,13 +1628,11 @@ function forcedStep(){
 }
 
 /* ---------- 담기 / 지나치기 ---------- */
-/* ---------- 두 번의 공개 ----------
-   1단계(여섯을 채운 직후) — 숲 전체를 펼치되 **숫자는 그대로 봉인**하고
-     🗿 토템 · ✦ 천사 · ⭐ 행운의 상자가 어디에 있었는지 '자리'만 알려준다.
-     버리고 다시 들어갈 수 있으므로 숫자를 보여주면 다음 탐험이 무의미해진다.
-   2단계('이대로 확정'을 누른 뒤) — 지도를 다시 펼쳐 45개 상자의 숫자를 5초간 공개. */
-const MARK_MS   = 2600;               // 자리 공개
-const REVEAL_MS = 5000;               // 숫자 공개
+/* ---------- 여섯을 채우면 숫자를 드러낸다 ----------
+   상자를 여는 동안에는 숫자를 일절 보여주지 않는다. 여섯째를 담는 순간
+   숲 전체가 펼쳐지며 45개 상자의 숫자가 한꺼번에 드러나고(5초),
+   그다음 '상자 정리' 화면으로 넘어간다. */
+const REVEAL_MS = 5000;
 function openMap(){
   overview = true; freeLook = false;
   targetVS = fitScale();
@@ -1643,29 +1640,15 @@ function openMap(){
   el('hud').classList.remove('free');
 }
 function beginReveal(){
-  revealed = true; revealNums = false;
+  revealed = true; revealNums = true;
   running = false;
   mover = null; forced = null; travel = null;
   openMap();
   renderSlots();
-  [523,659,784].forEach((f,i) => tone(f,.34,'triangle',.09,i*.08));
-  toast('🗺 <b>숲이 자리를 알려준다</b> — 🗿 토템 · ✦ 천사 · ⭐ 행운의 상자가 있던 자리<br>' +
-        '<span style="opacity:.8">숫자는 아직 봉인된 채다</span>');
-  setTimeout(openTrim, MARK_MS);
-}
-/* '이대로 확정' — 지도를 다시 펼쳐 숫자를 5초간 공개한 뒤 결과로 */
-function beginNumberReveal(){
-  if (finished) return;
-  closeModal('trimModal');
-  revealed = true; revealNums = true;
-  running = false;
-  openMap();
-  vs = fitScale() * 1.42;              /* 다시 펼치는 느낌 — 살짝 당겼다 물러난다 */
-  renderSlots();
   sfxDone();
   [523,659,784,1046].forEach((f,i) => tone(f,.4,'triangle',.1,i*.09));
   toast('🔓 <b>숲이 속을 드러낸다</b> — 5초 동안 45개 상자의 숫자를 모두 보여준다');
-  setTimeout(() => finish(false), REVEAL_MS);
+  setTimeout(openTrim, REVEAL_MS);
 }
 
 /* ---------- 상자 정리 ----------
@@ -1697,11 +1680,9 @@ function renderTrim(){
     ? '<b style="color:#f6dda1">' + k + '개</b>를 버리고 <b>이 숲에서 이어서</b> 다시 찾습니다 · 남은 걸음 ' +
       '<b style="color:#f6dda1">' + steps + '보</b><br>' +
       '판을 처음부터 다시 하는 것이 <b>아닙니다</b> — 지도·남은 상자·모은 조각은 그대로입니다.<br>' +
-      '남은 상자의 <b>숫자는 여전히 봉인</b>돼 있으니 다시 찾는 의미가 있습니다.<br>' +
       '<span style="color:#ff9a8f">버린 상자는 다시 열 수 없습니다.</span>' +
       (steps <= 0 ? '<br><span style="color:#ff9a8f">걸음이 없습니다 — 광고로 걸음을 채울 수 있습니다.</span>' : '')
-    : '확정하면 숲이 <b>다시 펼쳐지며</b> 45개 상자의 숫자를 <b>5초</b> 동안 보여줍니다 · ' +
-      '남은 걸음 <b style="color:#f6dda1">' + steps + '보</b>';
+    : '버릴 상자가 없으면 이대로 확정합니다 · 남은 걸음 <b style="color:#f6dda1">' + steps + '보</b>';
   el('trimDropBtn').textContent = k
     ? '🗑️ ' + k + '개 버리고 다시 찾기'
     : '🗑️ 버릴 상자를 고르세요';
@@ -1718,7 +1699,7 @@ function applyTrim(){
   const list = takenNodes();
   const drop = [...trimDrop].map(i => list[i]).filter(Boolean);
   closeModal('trimModal');
-  if (!drop.length){ beginNumberReveal(); return; }
+  if (!drop.length){ finish(false); return; }
   for (const nd of drop){
     nd.taken = false;
     nd.discarded = true;
@@ -2262,11 +2243,6 @@ function drawNode(n, time){
     const bob = Math.sin(time*.0022 + n.bob) * (isGold || isAngel ? 2.6 : 1.6);
     const y = n.y + bob;
     shadowE(n.x, n.y+3, 19, 6.5, .3);
-    /* 자리 공개 중에는 숲 전체가 작게 보이므로 상자도 함께 키운다 */
-    const mz = revealed ? clamp((11/vs)/19, 1, 5) : 1;
-    ctx.save();
-    if (mz > 1){ ctx.translate(n.x, y); ctx.scale(mz, mz); ctx.translate(-n.x, -y); }
-
     /* 황금 상자는 멀리서도 보이게 광채를 두른다 */
     if (isGold){
       const pu = .55 + .45*Math.sin(time*.004 + n.bob);
@@ -2276,30 +2252,15 @@ function drawNode(n, time){
       ctx.fillStyle = gg;
       ctx.beginPath(); ctx.arc(n.x, y-12, 56, 0, 6.2832); ctx.fill();
     }
-    /* 초특급 행운상자 — 흰빛 후광과 작은 날개, 그리고 떠 있는 고리 */
+    /* 초특급 행운상자 — 흰빛 광채만 두른다. 천사는 상자를 얻는 순간에만 나타난다 */
     if (isAngel){
       const pu = .55 + .45*Math.sin(time*.0035 + n.bob);
-      const gg = ctx.createRadialGradient(n.x, y-14, 3, n.x, y-14, 74);
-      gg.addColorStop(0, 'rgba(255,252,232,' + (.40 + pu*.26) + ')');
-      gg.addColorStop(.5, 'rgba(226,214,255,' + (.18 + pu*.14) + ')');
+      const gg = ctx.createRadialGradient(n.x, y-14, 3, n.x, y-14, 70);
+      gg.addColorStop(0, 'rgba(255,252,232,' + (.38 + pu*.24) + ')');
+      gg.addColorStop(.5, 'rgba(226,214,255,' + (.16 + pu*.12) + ')');
       gg.addColorStop(1, 'rgba(226,214,255,0)');
       ctx.fillStyle = gg;
-      ctx.beginPath(); ctx.arc(n.x, y-14, 74, 0, 6.2832); ctx.fill();
-      const flap = Math.sin(time*.004 + n.bob);
-      for (const d of [-1, 1]){
-        ctx.save(); ctx.translate(n.x, y); ctx.scale(d, 1);
-        ctx.fillStyle = 'rgba(255,253,246,.92)';
-        ctx.beginPath();
-        ctx.moveTo(12,-20);
-        ctx.quadraticCurveTo(31,-34 - flap*5, 39,-9 + flap*4);
-        ctx.quadraticCurveTo(25,-11, 13,-6);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = 'rgba(214,201,255,.7)'; ctx.lineWidth = 1; ctx.stroke();
-        ctx.restore();
-      }
-      ctx.strokeStyle = 'rgba(255,235,150,' + (.5 + pu*.45) + ')';
-      ctx.lineWidth = 2.4;
-      ctx.beginPath(); ctx.ellipse(n.x, y-36, 13, 4.2, 0, 0, 6.2832); ctx.stroke();
+      ctx.beginPath(); ctx.arc(n.x, y-14, 70, 0, 6.2832); ctx.fill();
       if (Math.random() < .2){
         parts.push({ x: n.x + rnd(-24,24), y: y - rnd(0,34), vx: rnd(-8,8), vy: rnd(-30,-10),
                      life:1, max:rnd(.6,1.3), size:rnd(1,2.4),
@@ -2324,17 +2285,6 @@ function drawNode(n, time){
     }
     if (isAngel){                       /* 뚜껑 위 별 하나 */
       sparkleStar(n.x, y-31, 5 + Math.sin(time*.005)*1.2, '#fff6cf');
-    }
-    ctx.restore();
-    /* 자리 공개 — 천사와 행운의 상자가 어디에 있었는지 이름표로 못박는다 */
-    if (revealed){
-      if (isAngel) drawAngel(n.x + 34*mz, n.y - 6*mz, mz*.62, time, .95, Math.sin(time*.0035)*.35);
-      if (isAngel || isGold){
-        ctx.fillStyle = isAngel ? '#fff6cf' : '#ffe9a8';
-        ctx.font = '800 ' + (9*mz).toFixed(1) + 'px system-ui,sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(isAngel ? '✦ 초특급 행운상자' : '⭐ 행운의 상자', n.x, n.y + 22*mz);
-      }
     }
     if (isGold && Math.random() < .12){
       parts.push({ x: n.x + rnd(-20,20), y: y - rnd(0,30), vx: rnd(-8,8), vy: rnd(-26,-8),
@@ -3472,7 +3422,7 @@ window.addEventListener('popstate', () => {
     return;
   }
   if (top === 'adModal') endAd('dismissed');
-  else if (top === 'trimModal'){ beginNumberReveal(); }   /* 정리를 건너뛰면 그대로 확정 */
+  else if (top === 'trimModal'){ closeModal('trimModal'); finish(false); }  /* 정리를 건너뛰면 그대로 확정 */
   else closeModal(top);
 });
 
@@ -3574,7 +3524,8 @@ el('totemClose').addEventListener('click', () => closeModal('totemModal'));
 el('trimKeepBtn').addEventListener('click', () => {
   audio(); tone(880,.16,'triangle',.1);
   trimDrop = new Set();
-  beginNumberReveal();
+  closeModal('trimModal');
+  finish(false);
 });
 el('trimDropBtn').addEventListener('click', () => {
   if (!trimDrop.size) return;

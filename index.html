@@ -207,6 +207,18 @@
   .adbar i{display:block;height:100%;width:0%;border-radius:99px;
     background:linear-gradient(90deg,#4bb98a,var(--gold));transition:width .25s linear;}
   .ticket{cursor:pointer;}
+  /* 상자 정리 */
+  .trimgrid{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:2px 0 14px;}
+  .trimb{position:relative;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
+         font-weight:900;font-size:19px;color:#fff;cursor:pointer;border:3px solid rgba(255,255,255,.18);
+         transition:transform .12s,opacity .12s,border-color .12s;-webkit-tap-highlight-color:transparent;}
+  .trimb:active{transform:scale(.93);}
+  .trimb.d{color:#332a0e;}
+  .trimb.off{opacity:.5;border-color:#c9564b;filter:grayscale(.55);}
+  .trimb.off::after{content:'✕';position:absolute;right:-5px;top:-6px;width:19px;height:19px;
+         border-radius:50%;background:#c9564b;color:#fff;font-size:12px;font-weight:900;
+         display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.55);}
+  .trimtip{font-size:12.5px;color:#8fa397;margin:-6px 0 12px;line-height:1.55;}
   .tcopy{font-size:10.5px;color:#a99b7d;margin-top:9px;}
 
   /* ================= 주사위 상자 ================= */
@@ -663,6 +675,20 @@
   </div>
 </div>
 
+<!-- 2-1. 상자 정리 (여섯을 채운 뒤) -->
+<div class="modal" id="trimModal">
+  <div class="card">
+    <h2>🧺 상자를 정리한다</h2>
+    <p class="sub">마음에 걸리는 상자는 <b style="color:#f6dda1">버리고</b> 다시 찾을 수 있습니다.<br>
+    버리는 데 <b>걸음은 들지 않고</b>, 개수 제한도 없습니다.</p>
+    <div class="trimgrid" id="trimGrid"></div>
+    <div class="trimtip">상자를 눌러 <b style="color:#ff7264">✕</b> 표시하면 버립니다 · 다시 누르면 되돌립니다</div>
+    <div class="starinfo" id="trimInfo"></div>
+    <button class="cta" id="trimKeepBtn">✅ 이대로 확정</button>
+    <button class="ghost" id="trimDropBtn">🗑️ 선택한 상자 버리고 다시 찾기</button>
+  </div>
+</div>
+
 <!-- 3. 결과 -->
 <div class="modal" id="resultModal">
   <div class="card">
@@ -822,6 +848,8 @@ const AD_STARS     = 1;                // 광고 1회 보상: 별
 const AD_STEPS     = 2;                // 광고 1회 보상: 걸음 (창고에 쌓인다)
 const TOTEM_N      = 12;               // 행운의 토템 조각 수
 const TOTEM_AT_MAX = 6;                // 조각은 한 판에 정확히 1개, 여는 순서 중 하나에서
+const ANGEL_CHANCE = 0.35;             // 한 판에 초특급 행운상자가 나올 확률
+const ANGEL_MS     = 2400;             // 천사 연출 길이
 const WALK_SPEED = 340;                // px/s
 
 /* ---------- 유틸 ---------- */
@@ -909,6 +937,9 @@ const GRADES = {
   high: { key:'high', name:'상급',        label:'상', tag:'붉은 옻칠 상자',
           body:'#7b322d', lid:'#933f38', trim:'#e9c46a', gems:2,
           bonus:2, skip:2, desc:'담으면 걸음 +2' },
+  angel:{ key:'angel', name:'초특급 행운상자', label:'✦', tag:'천사가 지키는 상자',
+          body:'#e6e2f2', lid:'#f5f2ff', trim:'#fff3b0', gems:3,
+          bonus:8, skip:0, desc:'천사가 나타나 축복을 준다 — 걸음 +8 · 모든 오솔길이 1보' },
   gold: { key:'gold', name:'행운의 상자', label:'⭐', tag:'광고로 얻은 황금 상자',
           body:'#c08f26', lid:'#e0a92e', trim:'#fff0b8', gems:3,
           bonus:4, skip:0, desc:'담으면 걸음 +4' }
@@ -1006,6 +1037,10 @@ let cur = null, steps = 0, maxSteps = 0, opened = [];
 let revealed = false;                 // 여섯을 채운 뒤 숫자를 드러낸 상태
 let travel = null;                    // 여러 칸 연속 이동 { legs, i }
 let totemAt = 1;                      // 이번 판에서 조각이 나올 개봉 순번 (1~6)
+let totemGiven = false;                // 이번 판 조각 지급 여부 (버리기로 다시 채워도 한 번만)
+let angel = null;                     // 천사 연출 { node, t0 }
+let blessed = false;                  // 천사의 축복을 받은 판 (모든 오솔길 1보)
+let sparks = [];                      // 주인공을 휘감는 반짝이
 let paths  = null;                    // 현재 위치 기준 최단거리표
 let placeGold = 0;                    // 이번 판 숲에 놓을 황금 상자 수 (별 소모량)
 let goldenMode = false;               // 전체 황금상자 모드 (토템 1회권)
@@ -1051,6 +1086,7 @@ function sfxDone(){ [523,659,784,1046,1318,1568].forEach((f,i) => tone(f,.5,'tri
 function sfxNo(){ tone(120,.18,'square',.06); }
 function sfxTake(){ [784,1046].forEach((f,i) => tone(f,.24,'sine',.11,i*.07)); }
 function sfxSkip(){ [440,330].forEach((f,i) => tone(f,.2,'sine',.07,i*.07)); }
+function sfxAngel(){ [659,784,988,1318,1568,1976].forEach((f,i) => tone(f,.9,'sine',.09,i*.13)); }
 
 /* ---------- 지도 생성 ---------- */
 function key(r,c){ return r*COLS + c; }
@@ -1104,8 +1140,13 @@ function genMap(){
   }
   nodes.forEach((n,i) => { n.grade = GRADES[gpool[i]]; });
 
+  /* 초특급 행운상자 — 가끔 한 개만 숨어 있다 */
+  if (Math.random() < ANGEL_CHANCE){
+    const pool = nodes.filter(n => n.chest);
+    if (pool.length) pool[Math.floor(Math.random()*pool.length)].grade = GRADES.angel;
+  }
   if (goldenMode){                       /* 토템 1회권 — 45개 상자 전부 황금 */
-    nodes.forEach(n => { if (n.chest) n.grade = GRADES.gold; });
+    nodes.forEach(n => { if (n.chest && n.grade.key !== 'angel') n.grade = GRADES.gold; });
   }
   let gleft = goldenMode ? 0 : clamp(placeGold, 0, MAP_GOLD_MAX);
   const order = nodes.map((_,i) => i);
@@ -1299,12 +1340,14 @@ function startRun(keepBuff){
   steps = maxSteps = buff.steps;
   opened = []; moveCount = 0; finished = false; mover = null;
   revealed = false;
-  forced = null; travel = null; diceChain = 0; diceRolls = 0; adSteps = 0;
+  forced = null; travel = null; angel = null; blessed = false; sparks = [];
+  diceChain = 0; diceRolls = 0; adSteps = 0;
   el('diceLayer').classList.remove('on');
   document.body.classList.remove('dicing');
   overview = false; freeLook = false; targetVS = followScale();
   el('mapBtn').classList.remove('on'); el('hud').classList.remove('free');
   totemAt = 1 + secRand(TOTEM_AT_MAX);   /* 몇 번째 상자에서 나올지 미리 정한다 */
+  totemGiven = false;
   computePaths();
   startTime = performance.now();
   running = true;
@@ -1367,7 +1410,7 @@ function hopsFrom(origin){
 }
 
 function canTravel(){
-  return running && !finished && !mover && !revealed && !forced && !travel;
+  return running && !finished && !mover && !revealed && !forced && !travel && !angel;
 }
 
 /* 멀리 있는 상자를 눌러도 된다 — 최단 경로를 따라가고 그만큼 걸음을 뺀다.
@@ -1446,8 +1489,8 @@ function arrive(node){
     renderSlots();
 
     /* 토템 조각은 한 판에 딱 하나 — 미리 정해둔 순번의 상자에서 나온다 */
-    const drop = (opened.length === totemAt) ? takeTotemPiece() : null;
-    if (drop) node.totem = drop.piece;
+    const drop = (!totemGiven && opened.length === totemAt) ? takeTotemPiece() : null;
+    if (drop){ totemGiven = true; node.totem = drop.piece; }
     if (drop){
       updateHUD();
       if (drop.complete){
@@ -1460,6 +1503,8 @@ function arrive(node){
       }
     }
     updateHUD();
+    /* 초특급 행운상자 — 천사가 내려와 지팡이로 축복을 준다 */
+    if (gr.key === 'angel'){ startAngel(node); return; }
     if (opened.length >= GOAL){ beginReveal(); return; }
     toast('상자를 담았다 · <b>' + (GOAL - opened.length) + '개</b> 남음' +
           (gr.bonus ? ' · ' + gr.name + ' 걸음 +' + gr.bonus : ''));
@@ -1467,6 +1512,31 @@ function arrive(node){
     return;
   }
   updateHUD();
+  checkStuck();
+}
+
+/* ---------- 초특급 행운상자 ----------
+   45개 중 어쩌다 하나. 열면 천사가 내려와 지팡이를 휘두르고,
+   반짝이가 주인공을 휘감은 뒤 사라진다. 남는 것은 축복이다. */
+function startAngel(node){
+  angel = { node, t0: performance.now() };
+  unlockAch('angel');
+  sfxAngel();
+  toast('✦ <b>천사가 내려온다</b> — 지팡이 끝에 빛이 맺힌다');
+  setTimeout(endAngel, ANGEL_MS);
+}
+function endAngel(){
+  if (!angel) return;
+  angel = null;
+  blessed = true;
+  edges.forEach(e => e.cost = 1);      /* 축복 — 모든 오솔길이 1보 */
+  computePaths();
+  updateHUD();
+  [1046,1318,1568].forEach((f,i) => tone(f,.5,'sine',.1,i*.1));
+  toast('✦ <b>행운의 축복</b> — 걸음 +' + GRADES.angel.bonus +
+        ' · 이제 모든 오솔길이 <b>1보</b>다');
+  if (finished) return;
+  if (opened.length >= GOAL){ beginReveal(); return; }
   checkStuck();
 }
 
@@ -1558,8 +1628,8 @@ function forcedStep(){
 /* ---------- 담기 / 지나치기 ---------- */
 /* ---------- 여섯을 채우면 숫자를 드러낸다 ----------
    상자를 여는 동안에는 숫자를 일절 보여주지 않는다. 여섯째를 담는 순간
-   지도의 상자와 슬롯에 번호가 한꺼번에 드러나고, 2초 뒤 결과로 넘어간다. */
-const REVEAL_MS = 2000;
+   지도의 상자와 슬롯에 번호가 한꺼번에 드러나고, 5초 뒤 결과로 넘어간다. */
+const REVEAL_MS = 5000;
 function beginReveal(){
   revealed = true;
   running = false;
@@ -1572,8 +1642,89 @@ function beginReveal(){
   renderSlots();
   sfxDone();
   [523,659,784,1046].forEach((f,i) => tone(f,.4,'triangle',.1,i*.09));
-  toast('🔓 <b>숲이 속을 드러낸다</b> — 담은 여섯은 테두리로 표시');
-  setTimeout(() => finish(false), REVEAL_MS);
+  toast('🔓 <b>숲이 속을 드러낸다</b> — 5초 동안 45개 상자의 속을 모두 보여준다');
+  setTimeout(openTrim, REVEAL_MS);
+}
+
+/* ---------- 상자 정리 ----------
+   여섯을 채운 뒤, 마음에 걸리는 상자는 버리고 다시 찾을 수 있다.
+   버리는 데 걸음은 들지 않는다 — 다시 찾아가는 걸음이 대가다.
+   버린 뒤에는 숲이 남은 상자의 번호를 다시 섞는다. */
+let trimDrop = new Set();
+function takenNodes(){
+  return nodes.filter(n => n.taken).sort((a,b) => (a.openT||0) - (b.openT||0));
+}
+function renderTrim(){
+  const list = takenNodes();
+  el('trimGrid').innerHTML = list.map((nd,i) => {
+    const st = ballStyle(nd.num);
+    return '<div class="trimb' + (st.dark ? ' d' : '') +
+           (trimDrop.has(i) ? ' off' : '') + '" data-i="' + i +
+           '" style="background:' + st.bg + '">' + nd.num + '</div>';
+  }).join('');
+  el('trimGrid').querySelectorAll('.trimb').forEach(b => {
+    b.addEventListener('click', () => {
+      const i = +b.dataset.i;
+      if (trimDrop.has(i)) trimDrop.delete(i); else trimDrop.add(i);
+      tone(trimDrop.has(i) ? 330 : 660, .12, 'triangle', .09);
+      renderTrim();
+    });
+  });
+  const k = trimDrop.size;
+  el('trimInfo').innerHTML = k
+    ? '<b style="color:#f6dda1">' + k + '개</b>를 버리고 숲으로 돌아갑니다 · 남은 걸음 ' +
+      '<b style="color:#f6dda1">' + steps + '보</b><br>' +
+      '숲은 남은 상자의 <b>번호를 다시 섞습니다</b> — 방금 본 숫자는 소용이 없습니다.' +
+      (steps <= 0 ? '<br><span style="color:#ff9a8f">걸음이 없습니다 — 광고로 걸음을 채울 수 있습니다.</span>' : '')
+    : '버릴 상자가 없으면 이대로 확정합니다 · 남은 걸음 <b style="color:#f6dda1">' + steps + '보</b>';
+  el('trimDropBtn').textContent = k
+    ? '🗑️ ' + k + '개 버리고 다시 찾기'
+    : '🗑️ 버릴 상자를 고르세요';
+  el('trimDropBtn').disabled = !k;
+  el('trimDropBtn').style.opacity = k ? 1 : .5;
+}
+function openTrim(){
+  if (finished) return;
+  trimDrop = new Set();
+  renderTrim();
+  openModal('trimModal');
+}
+/* 남은 상자와 버려진 상자의 번호를 다시 섞는다 */
+function reshuffleNumbers(){
+  const live = nodes.filter(n => n.chest && !n.opened);
+  const dead = nodes.filter(n => n.chest && n.opened && !n.taken);
+  const all  = live.concat(dead);
+  const pool = all.map(n => n.num);
+  for (let i=pool.length-1; i>0; i--){
+    const j = secRand(i+1);
+    const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+  }
+  all.forEach((nd,i) => { nd.num = pool[i]; });
+}
+function applyTrim(){
+  const list = takenNodes();
+  const drop = [...trimDrop].map(i => list[i]).filter(Boolean);
+  closeModal('trimModal');
+  if (!drop.length){ finish(false); return; }
+  for (const nd of drop){
+    nd.taken = false;
+    nd.discarded = true;
+    const at = opened.indexOf(nd.num);
+    if (at >= 0) opened.splice(at, 1);
+  }
+  reshuffleNumbers();
+  revealed = false;
+  running  = true;
+  overview = false; freeLook = false;
+  targetVS = followScale();
+  el('mapBtn').classList.remove('on');
+  el('hud').classList.remove('free');
+  computePaths();
+  renderSlots(); updateHUD();
+  sfxSkip();
+  toast('🧺 <b>' + drop.length + '개</b>를 버렸다 · 숲이 번호를 다시 섞었다 — ' +
+        '<b>' + (GOAL - opened.length) + '개</b>를 더 찾아야 한다');
+  checkStuck();
 }
 
 function checkStuck(){
@@ -1830,6 +1981,24 @@ function update(dt, time){
     if (p.life <= 0){ parts.splice(i,1); continue; }
     p.vy += 190*dt; p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= .985;
   }
+  /* 천사의 축복 — 반짝이가 주인공을 휘감는다 */
+  if (angel){
+    const at = (performance.now() - angel.t0) / ANGEL_MS;
+    if (at > .22 && at < .92){
+      for (let i=0; i<2; i++){
+        sparks.push({ a: rnd(0,6.2832), r: rnd(34,52), rise: 0, life: 1,
+                      max: rnd(.7,1.3), sp: rnd(2.4,4.6)*(Math.random()<.5?-1:1),
+                      size: rnd(1.2,3.1),
+                      col: pick(['#fff6d8','#ffe9a8','#e8dcff','#ffffff','#cdb4ff']) });
+      }
+    }
+  }
+  for (let i=sparks.length-1; i>=0; i--){
+    const sp = sparks[i];
+    sp.life -= dt/sp.max;
+    if (sp.life <= 0){ sparks.splice(i,1); continue; }
+    sp.a += sp.sp*dt; sp.r *= (1 - .42*dt); sp.rise += 36*dt;
+  }
   for (const f of flies){
     f.a += rnd(-1.7,1.7)*dt;
     f.x = clamp(f.x + Math.cos(f.a)*f.sp*dt, -60, MAP.w+60);
@@ -1991,6 +2160,7 @@ function drawDie(x, y, size, v, dark){
 
 /* 지금 위치에서 이 상자까지 몇 보인지 — 멀리 있는 상자도 눌러서 갈 수 있다 */
 function drawReach(n, time){
+  if (angel) return;
   if (revealed || finished) return;
   if (!paths || n === cur || vs <= .3) return;
   const d = reachCost(n);
@@ -2075,8 +2245,9 @@ function drawNode(n, time){
     ctx.fillText('숲 입구', n.x, n.y-32*z-4);
   } else if (!n.opened && !revealed && !finished){
     const g = n.grade || GRADES.low;
-    const isGold = g.key === 'gold';
-    const bob = Math.sin(time*.0022 + n.bob) * (isGold ? 2.6 : 1.6);
+    const isGold  = g.key === 'gold';
+    const isAngel = g.key === 'angel';
+    const bob = Math.sin(time*.0022 + n.bob) * (isGold || isAngel ? 2.6 : 1.6);
     const y = n.y + bob;
     shadowE(n.x, n.y+3, 19, 6.5, .3);
 
@@ -2088,6 +2259,36 @@ function drawNode(n, time){
       gg.addColorStop(1, 'rgba(255,214,110,0)');
       ctx.fillStyle = gg;
       ctx.beginPath(); ctx.arc(n.x, y-12, 56, 0, 6.2832); ctx.fill();
+    }
+    /* 초특급 행운상자 — 흰빛 후광과 작은 날개, 그리고 떠 있는 고리 */
+    if (isAngel){
+      const pu = .55 + .45*Math.sin(time*.0035 + n.bob);
+      const gg = ctx.createRadialGradient(n.x, y-14, 3, n.x, y-14, 74);
+      gg.addColorStop(0, 'rgba(255,252,232,' + (.40 + pu*.26) + ')');
+      gg.addColorStop(.5, 'rgba(226,214,255,' + (.18 + pu*.14) + ')');
+      gg.addColorStop(1, 'rgba(226,214,255,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(n.x, y-14, 74, 0, 6.2832); ctx.fill();
+      const flap = Math.sin(time*.004 + n.bob);
+      for (const d of [-1, 1]){
+        ctx.save(); ctx.translate(n.x, y); ctx.scale(d, 1);
+        ctx.fillStyle = 'rgba(255,253,246,.92)';
+        ctx.beginPath();
+        ctx.moveTo(12,-20);
+        ctx.quadraticCurveTo(31,-34 - flap*5, 39,-9 + flap*4);
+        ctx.quadraticCurveTo(25,-11, 13,-6);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(214,201,255,.7)'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.restore();
+      }
+      ctx.strokeStyle = 'rgba(255,235,150,' + (.5 + pu*.45) + ')';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.ellipse(n.x, y-36, 13, 4.2, 0, 0, 6.2832); ctx.stroke();
+      if (Math.random() < .2){
+        parts.push({ x: n.x + rnd(-24,24), y: y - rnd(0,34), vx: rnd(-8,8), vy: rnd(-30,-10),
+                     life:1, max:rnd(.6,1.3), size:rnd(1,2.4),
+                     col: pick(['#fff6d8','#ffffff','#e8dcff']) });
+      }
     }
     ctx.fillStyle = g.body;
     ctx.beginPath(); ctx.roundRect(n.x-17, y-17, 34, 18, 3); ctx.fill();
@@ -2104,6 +2305,9 @@ function drawNode(n, time){
       ctx.beginPath();
       ctx.arc(n.x - (g.gems-1)*4.5 + i*9, y-30.5, isGold ? 2.6 : 2.1, 0, 6.2832);
       ctx.fill();
+    }
+    if (isAngel){                       /* 뚜껑 위 별 하나 */
+      sparkleStar(n.x, y-31, 5 + Math.sin(time*.005)*1.2, '#fff6cf');
     }
     if (isGold && Math.random() < .12){
       parts.push({ x: n.x + rnd(-20,20), y: y - rnd(0,30), vx: rnd(-8,8), vy: rnd(-26,-8),
@@ -2167,6 +2371,10 @@ function drawNode(n, time){
       ctx.fillStyle = '#bfe6c6'; ctx.font = '800 9px system-ui,sans-serif';
       ctx.fillText('바람', 0, 28);
     }
+    if (n.discarded){
+      ctx.fillStyle = '#ff9a8f'; ctx.font = '800 9px system-ui,sans-serif';
+      ctx.fillText('버림', 0, 28);
+    }
     ctx.restore();
     /* 이 상자에서 토템 조각이 나왔다면 공개 때 그 자리에 남긴다 */
     if (n.totem !== undefined && (revealed || finished)){
@@ -2193,6 +2401,18 @@ function drawNode(n, time){
       ctx.fillText('🗿 ' + pc.n, tx, ty + 16*z2);
       ctx.restore();
     }
+    /* 초특급 행운상자였던 자리 — 공개 때 천사가 다시 선다 */
+    if (n.grade && n.grade.key === 'angel' && (revealed || finished)){
+      const z3 = revealed ? clamp((11/vs)/19, 1, 5) : clamp(1/vs, 1, 1.8);
+      drawAngel(n.x + 34*z3, n.y - 6*z3, z3*.62, time, .95,
+                Math.sin(time*.0035)*.35);
+      ctx.save();
+      ctx.fillStyle = '#fff6cf';
+      ctx.font = '800 ' + (9*z3).toFixed(1) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('✦ 초특급', n.x, n.y + 22*z3);
+      ctx.restore();
+    }
     if (mine && (revealed || finished)){   /* 내가 담은 여섯은 테두리로 구분 */
       const pu = .5 + .5*Math.sin(time*.009);
       const zr = revealed ? clamp((11/vs)/19, 1, 5) : 1;
@@ -2213,6 +2433,132 @@ function drawNode(n, time){
     ctx.beginPath(); ctx.ellipse(n.x, n.y+4, 26, 11, 0, 0, 6.2832); ctx.stroke();
     ctx.setLineDash([]);
   }
+}
+
+/* ---------- 천사 ----------
+   후광 · 날개 · 지팡이. 초특급 행운상자를 열 때, 그리고 마지막 전체 공개
+   화면에서 그 상자 자리 위에 다시 나타난다. */
+function sparkleStar(cx, cy, r, col){
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-r);
+  ctx.quadraticCurveTo(cx+r*.20, cy-r*.20, cx+r, cy);
+  ctx.quadraticCurveTo(cx+r*.20, cy+r*.20, cx, cy+r);
+  ctx.quadraticCurveTo(cx-r*.20, cy+r*.20, cx-r, cy);
+  ctx.quadraticCurveTo(cx-r*.20, cy-r*.20, cx, cy-r);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawAngel(x, y, s, time, alpha, swing){
+  ctx.save();
+  ctx.globalAlpha = clamp(alpha, 0, 1);
+  ctx.translate(x, y + Math.sin(time*.0021)*4*s);
+  ctx.scale(s, s);
+
+  /* 성스러운 빛 */
+  const g = ctx.createRadialGradient(0,-30,4,0,-30,80);
+  g.addColorStop(0,'rgba(255,250,222,.55)');
+  g.addColorStop(.45,'rgba(255,236,170,.20)');
+  g.addColorStop(1,'rgba(255,236,170,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,-30,80,0,6.2832); ctx.fill();
+
+  /* 날개 — 천천히 펄럭인다 */
+  const flap = Math.sin(time*.0045);
+  for (const d of [-1, 1]){
+    ctx.save(); ctx.scale(d, 1);
+    ctx.fillStyle = 'rgba(255,253,244,.94)';
+    ctx.beginPath();
+    ctx.moveTo(5,-40);
+    ctx.quadraticCurveTo(30, -62 - flap*9, 42, -26 + flap*7);
+    ctx.quadraticCurveTo(24, -26, 7, -18);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(214,201,255,.75)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.strokeStyle = 'rgba(214,201,255,.5)'; ctx.lineWidth = .9;
+    for (let k=1; k<=3; k++){
+      ctx.beginPath(); ctx.moveTo(6,-36+k*5);
+      ctx.quadraticCurveTo(20,-40+k*4-flap*5, 30-k*4,-27+k*2+flap*5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* 옷자락 */
+  ctx.fillStyle = '#fbf8ff';
+  ctx.beginPath();
+  ctx.moveTo(-9,-42); ctx.lineTo(9,-42);
+  ctx.quadraticCurveTo(17,-8, 13,4);
+  ctx.quadraticCurveTo(0,9, -13,4);
+  ctx.quadraticCurveTo(-17,-8, -9,-42);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(224,214,255,.55)';
+  ctx.beginPath();
+  ctx.moveTo(-11,-24); ctx.quadraticCurveTo(0,-19, 11,-24);
+  ctx.quadraticCurveTo(0,-14, -11,-24); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f0d68a';                       /* 금빛 띠 */
+  ctx.beginPath(); ctx.roundRect(-11,-31,22,3.4,2); ctx.fill();
+
+  /* 얼굴 */
+  ctx.fillStyle = '#ffe7c9';
+  ctx.beginPath(); ctx.arc(0,-51,8.6,0,6.2832); ctx.fill();
+  ctx.fillStyle = '#f6e2a8';
+  ctx.beginPath(); ctx.ellipse(0,-56,9.2,5.6,0,Math.PI,0); ctx.fill();
+  ctx.fillStyle = 'rgba(60,48,30,.7)';
+  ctx.beginPath(); ctx.arc(-3,-50.5,1.05,0,6.2832); ctx.fill();
+  ctx.beginPath(); ctx.arc(3,-50.5,1.05,0,6.2832); ctx.fill();
+
+  /* 후광 고리 */
+  const hp = .6 + .4*Math.sin(time*.004);
+  ctx.strokeStyle = 'rgba(255,235,150,' + (.55 + hp*.4) + ')';
+  ctx.lineWidth = 2.8;
+  ctx.beginPath(); ctx.ellipse(0,-64,10.8,3.5,0,0,6.2832); ctx.stroke();
+
+  /* 지팡이 — 축복을 내릴 때 크게 휘두른다 */
+  ctx.save();
+  ctx.translate(11,-38);
+  ctx.rotate(-.45 + (swing||0));
+  ctx.strokeStyle = '#d9c58c'; ctx.lineWidth = 2.8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0,12); ctx.lineTo(0,-24); ctx.stroke();
+  const sg = ctx.createRadialGradient(0,-28,1,0,-28,20);
+  sg.addColorStop(0,'rgba(255,248,206,.85)'); sg.addColorStop(1,'rgba(255,240,180,0)');
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(0,-28,20,0,6.2832); ctx.fill();
+  sparkleStar(0,-28, 9 + hp*2.5, '#fff6cf');
+  sparkleStar(0,-28, 4.5, '#ffffff');
+  ctx.restore();
+
+  /* 팔 */
+  ctx.strokeStyle = '#ffe7c9'; ctx.lineWidth = 3.2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(6,-38); ctx.lineTo(11,-33); ctx.stroke();
+  ctx.restore();
+}
+
+/* 상자를 연 순간의 천사 연출 — 내려왔다가 축복을 주고 올라간다 */
+function drawAngelScene(time){
+  if (!angel) return;
+  const t  = clamp((performance.now() - angel.t0) / ANGEL_MS, 0, 1);
+  const nd = angel.node;
+  const z  = clamp(1/vs, 1, 1.7);
+  const dx = (nd.x > MAP.w/2 ? -58 : 58) * z;
+  /* 강림 → 축복 → 승천 */
+  const drop = t < .22 ? Math.pow(1 - t/.22, 2) : 0;
+  const rise = t > .84 ? Math.pow((t-.84)/.16, 2) : 0;
+  const a    = t < .16 ? t/.16 : (t > .86 ? 1 - (t-.86)/.14 : 1);
+  const swing = (t > .28 && t < .74) ? Math.sin((t-.28)/.46 * Math.PI * 3) * .55 : 0;
+  const ax = nd.x + dx, ay = nd.y - 26*z - (drop + rise) * 200 * z;
+  /* 지팡이에서 주인공에게 흐르는 빛줄기 */
+  if (t > .28 && t < .84){
+    ctx.save();
+    ctx.globalAlpha = .35 * clamp(a,0,1);
+    const bg = ctx.createLinearGradient(ax, ay - 60*z, playerPos.x, playerPos.y - 20);
+    bg.addColorStop(0, 'rgba(255,246,200,.9)');
+    bg.addColorStop(1, 'rgba(255,246,200,0)');
+    ctx.strokeStyle = bg; ctx.lineWidth = 9*z; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ax, ay - 60*z);
+    ctx.quadraticCurveTo((ax + playerPos.x)/2, ay - 90*z, playerPos.x, playerPos.y - 22);
+    ctx.stroke();
+    ctx.restore();
+  }
+  drawAngel(ax, ay, z, time, a, swing);
 }
 
 function drawPlayer(time){
@@ -2289,6 +2635,19 @@ function render(time){
     if (d.x > L && d.x < R && d.y > T) drawDeco(d, time);
   }
   while (ei < ents.length){ ents[ei].f(); ei++; }
+
+  drawAngelScene(time);
+
+  /* 주인공을 휘감는 반짝이 */
+  for (const sp of sparks){
+    const sx = playerPos.x + Math.cos(sp.a)*sp.r;
+    const sy = playerPos.y - 16 - sp.rise + Math.sin(sp.a)*sp.r*.34;
+    ctx.globalAlpha = clamp(sp.life, 0, 1);
+    ctx.shadowBlur = 10; ctx.shadowColor = sp.col;
+    sparkleStar(sx, sy, sp.size*1.7, sp.col);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
 
   /* 반딧불이 · 파티클 */
   for (const f of flies){
@@ -2449,6 +2808,7 @@ const ACHS = [
   { id:'shoestring', ico:'👣', name:'아슬아슬',        desc:'남은 걸음 2보 이하로 완주한다' },
   { id:'veteran',    ico:'🏅', name:'숲의 단골',      desc:'탐험을 5번 완주한다' },
   { id:'dice_six',   ico:'🎲', name:'숲의 장난',      desc:'주사위에서 6이 나온다' },
+  { id:'angel',      ico:'✦',  name:'천사의 축복',    desc:'초특급 행운상자를 연다' },
   { id:'first_win',  ico:'🎯', name:'첫 당첨',        desc:'발행한 티켓이 5등 안에 든다' }
 ];
 let achDone = readJSON(AKEY, {});
@@ -3071,7 +3431,7 @@ el('devReset').addEventListener('click', () => {
 });
 
 /* ---------- 안드로이드 뒤로가기 ---------- */
-const MODALS = ['adModal','totemModal','exitModal','devModal','lbModal','achModal','histModal','failModal','resultModal','starModal','buffModal'];
+const MODALS = ['adModal','totemModal','exitModal','devModal','lbModal','achModal','histModal','failModal','trimModal','resultModal','starModal','buffModal'];
 function openModal(id){
   el(id).classList.add('on');
   try { history.pushState({ modal:id }, ''); } catch(e){}
@@ -3085,16 +3445,19 @@ window.addEventListener('popstate', () => {
     return;
   }
   if (top === 'adModal') endAd('dismissed');
+  else if (top === 'trimModal'){ closeModal('trimModal'); finish(false); }  /* 정리를 건너뛰면 그대로 확정 */
   else closeModal(top);
 });
 
 /* 등급 범례 (버프 화면에 함께 노출) */
 function renderGradeLegend(){
-  const rows = ['low','mid','high','gold'].map(k => {
+  const rows = ['low','mid','high','angel','gold'].map(k => {
     const g = GRADES[k];
     const cnt = k === 'gold'
       ? (goldStock ? '보유 ' + goldStock + '개 · 다음 화면에서 0~' + MAP_GOLD_MAX + '개 선택'
                    : '없음 (광고로 획득)')
+      : k === 'angel'
+      ? '한 판에 많아야 1개 · 나올 확률 ' + Math.round(ANGEL_CHANCE*100) + '%'
       : GRADE_MIX[k] + '개';
     return '<div class="bl"><span class="k" style="color:' + g.trim + '">' +
            g.label + ' ' + g.name + '</span><span class="v">' + g.desc +
@@ -3181,6 +3544,16 @@ el('goldenBtn').addEventListener('click', () => {
   toast('🗿 <b>전체 황금상자 모드</b> — 45개 상자가 모두 황금이다');
 });
 el('totemClose').addEventListener('click', () => closeModal('totemModal'));
+el('trimKeepBtn').addEventListener('click', () => {
+  audio(); tone(880,.16,'triangle',.1);
+  trimDrop = new Set();
+  closeModal('trimModal');
+  finish(false);
+});
+el('trimDropBtn').addEventListener('click', () => {
+  if (!trimDrop.size) return;
+  audio(); applyTrim();
+});
 el('starGo').addEventListener('click', () => {
   goldenMode = false;
   const use = clamp(placeGold, 0, Math.min(goldStock, MAP_GOLD_MAX));
@@ -3287,6 +3660,12 @@ camX = cur.x; camY = cur.y;
 vs = followScale(); targetVS = vs;
 steps = maxSteps = buff.steps;
 renderSlots(); updateHUD();
+
+/* 목업 점검용 상태 훅 (자동 테스트에서만 읽는다) */
+window.__ST = () => ({ angel: !!angel, blessed, revealed, finished, running,
+                       opened: opened.slice(), steps, totem: totemGiven,
+                       angelAt: (nodes.find(n => n.grade && n.grade.key === 'angel') || {}).num });
+
 requestAnimationFrame(loop);
 
 })();

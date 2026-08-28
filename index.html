@@ -2800,6 +2800,80 @@ function drawPlayer(time){
   ctx.restore();
 }
 
+/* ---------- 화면 마감 ----------
+   애니메이션 배경화 같은 인상은 캐릭터가 아니라 화면 전체에서 나온다.
+   ① 블룸 — 밝은 곳이 번져 빛이 공기 중에 퍼진 느낌
+   ② 근경 잎 — 화면 모서리에 흐릿한 잎을 걸어 원근을 만든다
+   ③ 색보정 — 위는 따뜻하게, 아래는 차갑게 눌러 시선을 가운데로 모은다 */
+let bloomCv = null, bloomCtx = null;
+let quality = 1;                       /* 느린 기기에서는 스스로 낮춘다 */
+let frameCost = 16;
+const BLOOM_DIV = 10;                  /* 크게 줄였다가 늘리면 그 자체가 블러다 */
+function ensureBloom(){
+  if (!bloomCv){ bloomCv = document.createElement('canvas'); bloomCtx = bloomCv.getContext('2d'); }
+  const w = Math.max(1, Math.round(cssW / BLOOM_DIV)), h = Math.max(1, Math.round(cssH / BLOOM_DIV));
+  if (bloomCv.width !== w || bloomCv.height !== h){ bloomCv.width = w; bloomCv.height = h; }
+}
+function applyBloom(){
+  if (quality < 1) return;
+  ensureBloom();
+  const w = bloomCv.width, h = bloomCv.height;
+  bloomCtx.setTransform(1,0,0,1,0,0);
+  bloomCtx.clearRect(0,0,w,h);
+  bloomCtx.drawImage(cv, 0, 0, w, h);        /* 축소 = 사실상 공짜 블러 */
+  ctx.save();
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.globalCompositeOperation = 'lighter';  /* 어두운 곳은 거의 더해지지 않는다 */
+  ctx.globalAlpha = .30;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(bloomCv, 0, 0, cssW, cssH);
+  ctx.restore();
+}
+
+/* 화면 모서리에 걸리는 근경 잎 — 카메라와 무관하게 화면에 고정된다 */
+const FG_LEAVES = [
+  { cx:0.02, cy:0.10, r:0.34, a:0.62, rot:-0.5, seed:1.2 },
+  { cx:0.99, cy:0.04, r:0.30, a:0.55, rot: 0.7, seed:2.7 },
+  { cx:0.10, cy:1.02, r:0.34, a:0.52, rot: 2.1, seed:3.9 },
+  { cx:0.94, cy:1.03, r:0.38, a:0.58, rot:-2.3, seed:5.1 }
+];
+let fgCv = null, fgW = 0, fgH = 0;
+function buildForeground(){          /* 크기가 바뀔 때 딱 한 번 그린다 */
+  fgW = Math.max(1, Math.round(cssW)); fgH = Math.max(1, Math.round(cssH));
+  fgCv = document.createElement('canvas');
+  fgCv.width = fgW; fgCv.height = fgH;
+  const g = fgCv.getContext('2d');
+  const base = Math.max(fgW, fgH);
+  if (g.filter !== undefined) g.filter = 'blur(9px)';
+  for (const L of FG_LEAVES){
+    g.save();
+    g.translate(L.cx*fgW, L.cy*fgH);
+    g.rotate(L.rot);
+    const R = base * L.r;
+    g.fillStyle = 'rgba(7,22,14,' + L.a + ')';
+    for (let k=0; k<3; k++){
+      g.save(); g.rotate((k-1)*0.62);
+      g.beginPath();
+      g.moveTo(0,0);
+      g.quadraticCurveTo(R*.55, -R*.34, R, 0);
+      g.quadraticCurveTo(R*.55,  R*.34, 0, 0);
+      g.closePath(); g.fill();
+      g.restore();
+    }
+    g.restore();
+  }
+  g.filter = 'none';
+}
+function drawForeground(time){
+  if (quality < 1) return;
+  if (!fgCv || fgW !== Math.round(cssW) || fgH !== Math.round(cssH)) buildForeground();
+  const sx = Math.sin(time*.00042)*3, sy = Math.cos(time*.00031)*2.4;   /* 바람에 흔들리는 만큼만 */
+  ctx.save();
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.drawImage(fgCv, sx, sy);
+  ctx.restore();
+}
+
 /* ---------- 메인 렌더 ---------- */
 function render(time){
   ctx.setTransform(1,0,0,1,0,0);
@@ -2864,13 +2938,30 @@ function render(time){
   }
   ctx.globalAlpha = 1;
 
-  /* 해질녘 색감 + 비네트 */
+  /* ── 화면 마감 ── */
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle = 'rgba(12,32,22,.30)';
-  ctx.fillRect(0,0,cssW,cssH);
-  const vg = ctx.createRadialGradient(cssW/2, cssH/2, Math.min(cssW,cssH)*.32,
-                                      cssW/2, cssH/2, Math.max(cssW,cssH)*.78);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(2,8,5,.6)');
+
+  /* 멀어질수록 내려앉는 안개 — 가운데는 맑고 가장자리는 푸르게 */
+  const fog = ctx.createRadialGradient(cssW/2, cssH*.52, Math.min(cssW,cssH)*.18,
+                                       cssW/2, cssH*.52, Math.max(cssW,cssH)*.72);
+  fog.addColorStop(0,   'rgba(120,190,160,0)');
+  fog.addColorStop(.55, 'rgba(86,150,132,.10)');
+  fog.addColorStop(1,   'rgba(58,118,110,.24)');
+  ctx.fillStyle = fog; ctx.fillRect(0,0,cssW,cssH);
+
+  applyBloom();
+  drawForeground(time);
+
+  /* 해질녘 색감 — 위는 따뜻하게, 아래는 차갑게 */
+  const grade = ctx.createLinearGradient(0, 0, 0, cssH);
+  grade.addColorStop(0,   'rgba(255,196,120,.09)');
+  grade.addColorStop(.45, 'rgba(12,32,22,.20)');
+  grade.addColorStop(1,   'rgba(6,20,26,.34)');
+  ctx.fillStyle = grade; ctx.fillRect(0,0,cssW,cssH);
+
+  const vg = ctx.createRadialGradient(cssW/2, cssH/2, Math.min(cssW,cssH)*.30,
+                                      cssW/2, cssH/2, Math.max(cssW,cssH)*.76);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(2,8,5,.62)');
   ctx.fillStyle = vg; ctx.fillRect(0,0,cssW,cssH);
 }
 
@@ -3801,6 +3892,12 @@ el('soundBtn').addEventListener('click', () => {
 /* ---------- 루프 ---------- */
 let last = 0;
 function loop(now){
+  if (loop._t){
+    frameCost = frameCost*.9 + (now - loop._t)*.1;
+    if (quality === 1 && frameCost > 26) quality = 0;        /* 버거우면 마감을 내린다 */
+    else if (quality === 0 && frameCost < 17) quality = 1;
+  }
+  loop._t = now;
   const dt = Math.min((now - last)/1000 || 0, .05);
   last = now;
   update(dt, now);

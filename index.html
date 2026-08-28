@@ -1672,9 +1672,10 @@ function renderTrim(){
   });
   const k = trimDrop.size;
   el('trimInfo').innerHTML = k
-    ? '<b style="color:#f6dda1">' + k + '개</b>를 버리고 숲으로 돌아갑니다 · 남은 걸음 ' +
+    ? '<b style="color:#f6dda1">' + k + '개</b>를 버리고 <b>이 숲에서 이어서</b> 다시 찾습니다 · 남은 걸음 ' +
       '<b style="color:#f6dda1">' + steps + '보</b><br>' +
-      '숲은 남은 상자의 <b>번호를 다시 섞습니다</b> — 방금 본 숫자는 소용이 없습니다.' +
+      '판을 처음부터 다시 하는 것이 <b>아닙니다</b> — 지도·남은 상자·모은 조각은 그대로입니다.<br>' +
+      '<span style="color:#ff9a8f">버린 상자는 다시 열 수 없습니다.</span>' +
       (steps <= 0 ? '<br><span style="color:#ff9a8f">걸음이 없습니다 — 광고로 걸음을 채울 수 있습니다.</span>' : '')
     : '버릴 상자가 없으면 이대로 확정합니다 · 남은 걸음 <b style="color:#f6dda1">' + steps + '보</b>';
   el('trimDropBtn').textContent = k
@@ -1689,18 +1690,6 @@ function openTrim(){
   renderTrim();
   openModal('trimModal');
 }
-/* 남은 상자와 버려진 상자의 번호를 다시 섞는다 */
-function reshuffleNumbers(){
-  const live = nodes.filter(n => n.chest && !n.opened);
-  const dead = nodes.filter(n => n.chest && n.opened && !n.taken);
-  const all  = live.concat(dead);
-  const pool = all.map(n => n.num);
-  for (let i=pool.length-1; i>0; i--){
-    const j = secRand(i+1);
-    const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
-  }
-  all.forEach((nd,i) => { nd.num = pool[i]; });
-}
 function applyTrim(){
   const list = takenNodes();
   const drop = [...trimDrop].map(i => list[i]).filter(Boolean);
@@ -1712,7 +1701,6 @@ function applyTrim(){
     const at = opened.indexOf(nd.num);
     if (at >= 0) opened.splice(at, 1);
   }
-  reshuffleNumbers();
   revealed = false;
   running  = true;
   overview = false; freeLook = false;
@@ -1722,8 +1710,8 @@ function applyTrim(){
   computePaths();
   renderSlots(); updateHUD();
   sfxSkip();
-  toast('🧺 <b>' + drop.length + '개</b>를 버렸다 · 숲이 번호를 다시 섞었다 — ' +
-        '<b>' + (GOAL - opened.length) + '개</b>를 더 찾아야 한다');
+  toast('🧺 <b>' + drop.length + '개</b>를 버렸다 · 버린 상자는 다시 열 수 없다 — ' +
+        '이 숲에서 <b>' + (GOAL - opened.length) + '개</b>를 더 찾는다');
   checkStuck();
 }
 
@@ -3664,6 +3652,8 @@ renderSlots(); updateHUD();
 /* 목업 점검용 상태 훅 (자동 테스트에서만 읽는다) */
 window.__ST = () => ({ angel: !!angel, blessed, revealed, finished, running,
                        opened: opened.slice(), steps, totem: totemGiven,
+                       sig: nodes.filter(n => n.chest).map(n => n.num).join(','),
+                       dropped: nodes.filter(n => n.discarded).map(n => n.num).join(','),
                        angelAt: (nodes.find(n => n.grade && n.grade.key === 'angel') || {}).num });
 
 requestAnimationFrame(loop);

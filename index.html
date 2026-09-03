@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<title>숲속 오솔길 보물찾기 · 로또 번호 생성기</title>
+<title>숲속 로또 보물상자 찾기 · 로또 번호 생성기</title>
 <style>
   :root{
     --gold:#e9c46a; --gold-2:#f6dda1;
@@ -345,6 +345,9 @@
     background:rgba(6,14,10,.94);border-top:1px solid rgba(233,196,106,.22);
     backdrop-filter:blur(8px);}
   body.playing #banner{display:flex;}
+  body.noads #banner,
+  body.noads #adBtn1,
+  body.noads #adBtn2{display:none!important;}
   .ad-tag{flex:0 0 auto;font-size:9.5px;font-weight:900;letter-spacing:.06em;
     color:#0d2116;background:#e9c46a;border-radius:4px;padding:2px 6px;}
   .ad-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;text-align:left;}
@@ -504,7 +507,7 @@
 <body>
 <div id="splash">
   <div class="sp-icon">🌲</div>
-  <div class="sp-name">숲속 오솔길 보물찾기</div>
+  <div class="sp-name">숲속 로또 보물상자 찾기</div>
   <div class="sp-sub">Forest Trail Lotto</div>
   <div class="sp-dots"><i></i><i></i><i></i></div>
   <div class="sp-foot">목업 빌드 · Google Play 연동 전</div>
@@ -566,7 +569,7 @@
   <div class="card">
     <h1>오늘 당신의 운은<br>좋습니까?</h1>
     <p class="sub">숲은 당신의 대답에 맞춰 채비를 내어줍니다.<br>대답에 따라 <b style="color:#f6dda1">서로 다른 버프</b>를 받습니다.<br>
-    상자를 열면 <b style="color:#f6dda1">담을지 지나칠지</b> 고를 수 있습니다 (지나치기 1보).</p>
+    <b style="color:#f6dda1">18보</b> 안에 상자 여섯을 열면 번호가 완성됩니다.</p>
     <div class="playrow" id="playRow">
       <span class="pavatar" id="pAvatar">?</span>
       <span class="gt">
@@ -586,7 +589,7 @@
       <span class="gem">⭐</span>
       <span class="gt">
         <span class="g1" id="goldCount">행운의 상자 0개</span>
-        <span class="g2" id="goldNote">광고를 보면 1개씩 쌓입니다. 모은 만큼 숲에 <b>황금 상자</b>로 놓입니다.</span>
+        <span class="g2" id="goldNote">한 판을 완주할 때마다 1개씩 쌓입니다. 모은 만큼 숲에 <b>황금 상자</b>로 놓입니다.</span>
       </span>
       <button class="adbtn" id="adBtn1">📺 광고 보기</button>
     </div>
@@ -833,7 +836,7 @@
 'use strict';
 
 /* =====================================================================
-   숲속 오솔길 보물찾기 · 로또 6/45 번호 생성기
+   숲속 로또 보물상자 찾기 · 로또 6/45 번호 생성기
    45개 상자가 오솔길로 연결된 숲. 걸음(이동력) 안에서 6개를 열면 완성.
    ===================================================================== */
 
@@ -847,8 +850,10 @@ const MAP  = { w: (COLS-1)*CELL + MARGIN*2, h: (ROWS-1)*CELL + MARGIN*2 };
 const GOAL = 6;                        // 모아야 할 상자 수
 const START_STEPS  = 18;               // 매 판 시작 걸음 — 버프와 무관하게 항상 리셋
 const MAP_GOLD_MAX = 6;                // 한 판 숲에 놓을 수 있는 황금 상자 최대치
+const ADS_ENABLED  = false;            // 실제 광고 SDK를 붙이면 true 로 되돌린다
 const AD_STARS     = 1;                // 광고 1회 보상: 별
 const AD_STEPS     = 2;                // 광고 1회 보상: 걸음 (창고에 쌓인다)
+const GIFT_MAX     = 3;                // 광고가 없을 때, 한 판에 숲이 베푸는 인심 횟수
 const TOTEM_N      = 12;               // 행운의 토템 조각 수
 const TOTEM_AT_MAX = 6;                // 조각은 한 판에 정확히 1개, 여는 순서 중 하나에서
 const ANGEL_CHANCE = 0.35;             // 한 판에 초특급 행운상자가 나올 확률
@@ -1042,6 +1047,7 @@ let revealNums = false;               // 숫자까지 드러낸 상태 — '이�
 let travel = null;                    // 여러 칸 연속 이동 { legs, i }
 let totemAt = 1;                      // 이번 판에서 조각이 나올 개봉 순번 (1~6)
 let totemGiven = false;                // 이번 판 조각 지급 여부 (버리기로 다시 채워도 한 번만)
+let giftUsed = 0;                     // 이번 판에 받은 숲의 인심 횟수
 let angel = null;                     // 천사 연출 { node, t0 }
 let blessed = false;                  // 천사의 축복을 받은 판 (모든 오솔길 1보)
 let sparks = [];                      // 주인공을 휘감는 반짝이
@@ -1352,6 +1358,7 @@ function startRun(keepBuff){
   el('mapBtn').classList.remove('on'); el('hud').classList.remove('free');
   totemAt = 1 + secRand(TOTEM_AT_MAX);   /* 몇 번째 상자에서 나올지 미리 정한다 */
   totemGiven = false;
+  giftUsed = 0;
   computePaths();
   startTime = performance.now();
   running = true;
@@ -1753,14 +1760,29 @@ function checkStuck(){
     el('failSub').innerHTML =
       '걸음이 다했습니다. 상자는 <b style="color:#f6dda1">' + opened.length + ' / ' + GOAL + '</b>개를 열었습니다.' +
       (goldLeft ? '<br>숲에 <b style="color:#f6dda1">⭐ 황금 상자 ' + goldLeft + '개</b>가 아직 남아 있습니다.' : '') +
-      '<br>광고를 보면 <b style="color:#f6dda1">별 +' + AD_STARS + ' · 걸음 +' + AD_STEPS +
-      '보</b>를 받아 이어서 갈 수 있습니다.<br>' +
+      (ADS_ENABLED
+        ? '<br>광고를 보면 <b style="color:#f6dda1">별 +' + AD_STARS + ' · 걸음 +' + AD_STEPS +
+          '보</b>를 받아 이어서 갈 수 있습니다.<br>'
+        : '<br>숲이 <b style="color:#f6dda1">걸음 +' + AD_STEPS + '보</b>를 내어 줍니다 — ' +
+          '한 판에 <b style="color:#f6dda1">' + GIFT_MAX + '번</b>까지.<br>') +
       '<span style="font-size:11.5px">바람에 맡기면 남은 ' + (GOAL - opened.length) +
       '개를 아직 열지 않은 상자 중에서 무작위로 채웁니다.</span>';
     const bk = bankedSteps();
     const bb = el('bankBtn');
     bb.style.display = bk > 0 ? '' : 'none';
     bb.textContent = '👣 보유 걸음 ' + bk + '보 쓰기';
+    const ab = el('adStepBtn');
+    if (ADS_ENABLED){
+      ab.textContent = '📺 광고 보기 (⭐+' + AD_STARS + ' · 👣+' + AD_STEPS + ')';
+      ab.disabled = false; ab.style.opacity = 1;
+    } else {
+      const left = GIFT_MAX - giftUsed;
+      ab.textContent = left > 0
+        ? '🌿 숲의 인심 — 걸음 +' + AD_STEPS + ' (남은 ' + left + '번)'
+        : '🌿 숲의 인심을 다 썼다';
+      ab.disabled = left <= 0;
+      ab.style.opacity = left > 0 ? 1 : .45;
+    }
     openModal('failModal');
   }
 }
@@ -1796,6 +1818,9 @@ function finish(byWind){
   Lotto.submitTicket(lastResult);
   cloudSync();
 
+  if (!ADS_ENABLED && !byWind){        /* 완주 보상 — 광고 대신 걸어서 번다 */
+    goldStock += 1; saveGold(); updateGoldUI();
+  }
   el('resultBalls').innerHTML = nums.map(ballHTML).join('');
   el('resultMeta').innerHTML =
     '<b style="color:#8a7f66">제 ' + round + '회 응모</b> · 추첨 ' + fmtDate(drawTimeOf(round)) + '<br>' +
@@ -3503,6 +3528,7 @@ const Play = {
 };
 
 function updatePlayUI(){
+  el('playRow').style.display = NATIVE ? '' : 'none';   /* 브릿지가 없으면 목업이므로 감춘다 */
   const row = el('playRow');
   row.classList.toggle('in', Play.signedIn);
   row.classList.toggle('out', !Play.signedIn);
@@ -3609,9 +3635,24 @@ function endAd(result){
   if (r) r(result);
 }
 
-/* 걸음이 막혔을 때 — 광고 1회로 AD_STEPS 만큼 이어 간다 */
+/* 걸음이 막혔을 때 — 광고 1회로 AD_STEPS 만큼 이어 간다.
+   광고가 없는 빌드에서는 숲이 한 판에 GIFT_MAX 번까지 걸음을 내어 준다. */
 async function watchAdForSteps(){
   audio();
+  if (!ADS_ENABLED){
+    if (giftUsed >= GIFT_MAX){ sfxNo(); toast('숲의 인심을 다 썼다 — 바람에 맡기거나 다시 도전하자'); return; }
+    giftUsed++;
+    steps += AD_STEPS;
+    adSteps += AD_STEPS;
+    closeModal('failModal');
+    running = true;
+    sfxDone();
+    updateHUD(); cloudSync();
+    toast('🌿 <b>숲이 길을 내어 준다</b> — 걸음 <b>+' + AD_STEPS + '</b> · 남은 인심 ' +
+          (GIFT_MAX - giftUsed) + '번');
+    checkStuck();
+    return;
+  }
   const r = await Play.showRewardedAd();
   if (r !== 'rewarded'){
     toast(r === 'nofill' ? '지금은 볼 수 있는 광고가 없습니다. 잠시 뒤 다시 시도해 주세요.'
@@ -3677,7 +3718,9 @@ function showTotemComplete(){
 function updateGoldUI(){
   el('goldCount').textContent = '행운의 상자 ' + goldStock + '개';
   el('goldNote').innerHTML =
-    '광고를 보면 <b>별 +' + AD_STARS + ' · 걸음 +' + AD_STEPS + '</b>. 보유에 상한은 없습니다.<br>' +
+    (ADS_ENABLED
+      ? '광고를 보면 <b>별 +' + AD_STARS + ' · 걸음 +' + AD_STEPS + '</b>. 보유에 상한은 없습니다.<br>'
+      : '한 판을 <b>완주할 때마다 별 +1</b>. 보유에 상한은 없습니다.<br>') +
     '숲에 들어가기 전 <b>0~' + MAP_GOLD_MAX + '개</b>를 골라 황금 상자로 놓습니다 (고른 만큼 소모).';
   el('adBtn1').disabled = false;
   const chip = el('goldChip');
@@ -3915,7 +3958,7 @@ el('histClear').addEventListener('click', () => {
 });
 document.querySelector('.ticket').addEventListener('click', () => {
   if (!lastResult) return;
-  const txt = '🌲 숲속 오솔길 보물찾기 · 로또 번호\n' + lastResult.main.join(', ') +
+  const txt = '🌲 숲속 로또 보물상자 찾기 · 로또 번호\n' + lastResult.main.join(', ') +
               '\n' + lastResult.em + ' ' + lastResult.buff + ' (' + lastResult.date + ')';
   const done = () => toast('번호를 복사했습니다 📋');
   if (navigator.clipboard && navigator.clipboard.writeText)
@@ -3989,6 +4032,7 @@ setTimeout(async () => {
         (API_BASE ? '' : '<br><span style="font-size:11px;color:#9cb3a4">모의 추첨 결과입니다</span>'));
 }, 2200);
 /* 앱 실행 느낌의 스플래시 — 목업에서는 1.3초 뒤 사라진다 */
+document.body.classList.toggle('noads', !ADS_ENABLED);
 setTimeout(() => el('splash').classList.add('gone'), 1300);
 resize();
 makeGround();

@@ -1,6 +1,6 @@
 {
   "appId": "org.everbluesea.forestlotto",
-  "appName": "숲속 오솔길 보물찾기",
+  "appName": "숲속 로또 보물상자 찾기",
   "webDir": "www",
   "android": {
     "allowMixedContent": false,

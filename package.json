@@ -1,7 +1,7 @@
 {
   "name": "forest-trail-lotto",
   "version": "1.0.0",
-  "description": "숲속 오솔길 보물찾기 — 오솔길을 따라 상자 여섯을 열어 만드는 로또 6/45 번호 생성 게임",
+  "description": "숲속 로또 보물상자 찾기 — 오솔길을 따라 상자 여섯을 열어 만드는 로또 6/45 번호 생성 게임",
   "private": true,
   "type": "module",
   "scripts": {

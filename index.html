@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<title>숲속 오솔길 보물찾기 · 로또 번호 생성기</title>
+<title>숲속 로또 보물상자 찾기 · 로또 번호 생성기</title>
 <style>
   :root{
     --gold:#e9c46a; --gold-2:#f6dda1;
@@ -504,7 +504,7 @@
 <body>
 <div id="splash">
   <div class="sp-icon">🌲</div>
-  <div class="sp-name">숲속 오솔길 보물찾기</div>
+  <div class="sp-name">숲속 로또 보물상자 찾기</div>
   <div class="sp-sub">Forest Trail Lotto</div>
   <div class="sp-dots"><i></i><i></i><i></i></div>
   <div class="sp-foot">목업 빌드 · Google Play 연동 전</div>
@@ -833,7 +833,7 @@
 'use strict';
 
 /* =====================================================================
-   숲속 오솔길 보물찾기 · 로또 6/45 번호 생성기
+   숲속 로또 보물상자 찾기 · 로또 6/45 번호 생성기
    45개 상자가 오솔길로 연결된 숲. 걸음(이동력) 안에서 6개를 열면 완성.
    ===================================================================== */
 
@@ -3915,7 +3915,7 @@ el('histClear').addEventListener('click', () => {
 });
 document.querySelector('.ticket').addEventListener('click', () => {
   if (!lastResult) return;
-  const txt = '🌲 숲속 오솔길 보물찾기 · 로또 번호\n' + lastResult.main.join(', ') +
+  const txt = '🌲 숲속 로또 보물상자 찾기 · 로또 번호\n' + lastResult.main.join(', ') +
               '\n' + lastResult.em + ' ' + lastResult.buff + ' (' + lastResult.date + ')';
   const done = () => toast('번호를 복사했습니다 📋');
   if (navigator.clipboard && navigator.clipboard.writeText)

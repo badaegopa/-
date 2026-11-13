@@ -223,8 +223,11 @@ function loadAssets(onProg){return new Promise(res=>{
   const end=v=>{if(fin)return;fin=true;ASSET.loaded=v;res(v)},done=()=>{onProg&&onProg(total-left+1,total);if(--left===0)end(ok)};
   const fix=root=>root.traverse(o=>{if(!o.isMesh)return;const m=o.material,nm=new THREE.MeshLambertMaterial({map:m.map||null,color:m.color?m.color.clone():0xffffff,skinning:!!o.isSkinnedMesh});
     if(nm.map){nm.map.encoding=THREE.LinearEncoding;nm.map.needsUpdate=true}o.material=nm;o.castShadow=true;o.receiveShadow=!o.isSkinnedMesh;if(o.isSkinnedMesh)o.frustumCulled=false});
-  L.load('assets/env.glb',g=>{g.scenes.forEach(sc=>{fix(sc);ASSET.env[sc.name]=sc});done()},undefined,()=>{ok=false;done()});
-  ASSET.chars.forEach(n=>L.load('assets/'+n+'.glb',g=>{fix(g.scene);ASSET.char[n]={scene:g.scene,clips:g.animations};done()},undefined,()=>{ok=false;done()}));
+  // 모델 파일(.glb)을 그대로 받되, 그 형식을 못 올리는 호스팅에서는 base64 텍스트(.glb.txt)를 받아 복원한다
+  const get=(n,on)=>{const bad=()=>{ok=false;done()};L.load('assets/'+n+'.glb',on,undefined,()=>{
+    fetch('assets/'+n+'.glb.txt').then(r=>{if(!r.ok)throw 0;return r.text()}).then(t=>{const bin=atob(t.trim()),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);L.parse(u.buffer,'',on,bad)}).catch(bad)})};
+  get('env',g=>{g.scenes.forEach(sc=>{fix(sc);ASSET.env[sc.name]=sc});done()});
+  ASSET.chars.forEach(n=>get(n,g=>{fix(g.scene);ASSET.char[n]={scene:g.scene,clips:g.animations};done()}));
   setTimeout(()=>end(false),30000)})}
 function envParts(name,k,tint){const sc=ASSET.env[name],out=[];sc.updateMatrixWorld(true);sc.traverse(o=>{if(o.isMesh){const g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);g.scale(k,k,k);let m=o.material;if(tint){m=m.clone();m.color.setHex(tint)}out.push([g,m])}});return out}
 function envObj(name,k,x,z,ry,parent,y){const o=ASSET.env[name].clone();o.scale.setScalar(k);o.position.set(x,y===undefined?H(x,z):y,z);o.rotation.y=ry||0;(parent||scene).add(o);return o}

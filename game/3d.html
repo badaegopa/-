@@ -126,17 +126,20 @@ function h2(x,z){let h=Math.imul(x,374761393)+Math.imul(z,668265263)|0;h=Math.im
 function vnoise(x,z){const xi=Math.floor(x),zi=Math.floor(z),xf=x-xi,zf=z-zi,u=xf*xf*(3-2*xf),v=zf*zf*(3-2*zf);const a=h2(xi,zi),b=h2(xi+1,zi),c=h2(xi,zi+1),d=h2(xi+1,zi+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
 function fbm(x,z){let s=0,a=.5,f=1;for(let i=0;i<4;i++){s+=a*vnoise(x*f,z*f);a*=.5;f*=2}return s/.9375}
 const sm=t=>{t=clamp(t,0,1);return t*t*(3-2*t)};
-const WORLD=400;
+const WORLD=560,CONT=400,ISL={x:0,z:455},VIL={x:0,z:461}; // WORLD: 지형 전체, CONT: 본토, ISL: 시작 섬, VIL: 섬 마을
 function H(x,z){
   const r=Math.hypot(x,z);
   let h=fbm(x*.008+7,z*.008+3)*20-3.5;
   const mt=sm((-z-140)/160);h+=mt*(fbm(x*.014+50,z*.014)*46+8);
   h-=24*Math.exp(-((x-135)**2+(z-75)**2)/(2*30*30));
-  const fall=sm((r/WORLD-.74)/.24);h=h*(1-fall)-12*fall;
+  const fall=sm((r/CONT-.74)/.24);h=h*(1-fall)-12*fall;
   const v=1-sm((r-46)/40);h=h*(1-v)+2.2*v;
+  if(z>345){ // 본토 남쪽 바다의 시작 섬
+    const dx=x-ISL.x,dz=z-ISL.z,d=Math.hypot(dx,dz)+(fbm(x*.03,z*.03)-.5)*26,m=1-sm((d-48)/30);
+    let hi=-12+m*(15+fbm(x*.02+3,z*.02)*9);const vv=1-sm((Math.hypot(x-VIL.x,z-VIL.z)-16)/14);hi=hi*(1-vv)+(2.2*m+hi*(1-m))*vv;h=Math.max(h,hi)}
   return h;
 }
-function zoneTier(x,z){const r=Math.hypot(x,z),h=H(x,z);if(z<-170&&h>14)return h>30?3:2;return r<150?1:r<285?2:3}
+function zoneTier(x,z){if(z>345)return 1;const r=Math.hypot(x,z),h=H(x,z);if(z<-170&&h>14)return h>30?3:2;return r<150?1:r<285?2:3}
 function slopeAt(x,z){return Math.hypot(H(x+1.5,z)-H(x-1.5,z),H(x,z+1.5)-H(x,z-1.5))/3}
 function terrainColor(x,z,h,out,sl){
   const t=zoneTier(x,z),n=(fbm(x*.05,z*.05)-.5)*.14,rock=h>27||(sl>.95&&h>5);
@@ -147,6 +150,9 @@ function terrainColor(x,z,h,out,sl){
   if(h>=.9&&h<=46&&!rock&&fbm(x*.02+9,z*.02+4)>.6)c=[c[0]+.09,c[1]+.04,c[2]-.02];
   out[0]=c[0]+n;out[1]=c[1]+n;out[2]=c[2]+n;return out;
 }
+// 바다 쪽에서 훑어 처음 만나는 뭍 — 나루터 자리
+function landFrom(x,z0,dz){let z=z0;for(let i=0;i<220&&H(x,z)<=.6;i++)z+=dz;return z}
+const PIER={isl:landFrom(0,ISL.z-80,1),main:landFrom(0,345,-1)};
 /* ============ 데이터 ============ */
 const IT={
   wood:{n:'잔나무 목재',i:'🪵',p:4},oak:{n:'참나무 목재',i:'🌰',p:11},elder:{n:'고목 목재',i:'🎋',p:28},
@@ -197,19 +203,29 @@ const NPC={
   bori:{n:'보리',role:'농부',x:-13,z:13,body:0x5a8a4a,hat:0xd8b25a,
     lines:['씨앗은 심어 두면 알아서 자라. 다른 일 하다 와도 돼.','집을 넓히면 밭도 늘어나.','호박은 오래 걸려도 값을 하지.'],
     pool:[['carrot',4],['wheat',4],['herb',5],['pumpkin',2],['soup',1]],gifts:[[3,{item:['s_carrot',12]}],[6,{item:['pumpkin',3]}],[10,{coin:600}]]},
+  mulgyeol:{n:'물결',role:'뱃사공',x:3.5,z:PIER.isl+5,body:0x3f78a6,hat:0xd8b25a,ferry:true,
+    lines:['바다는 서두르는 사람을 싫어해. 천천히 해.','본토는 넓어. 여기서 손을 익히고 건너가.','오늘 물빛이 참 좋다.'],
+    pool:[['shell',4],['wood',8],['herb',4],['plank',3]],gifts:[[3,{coin:100}],[6,{item:['s_wheat',6]}],[10,{coin:500}]]},
   gaon:{n:'가온',role:'사범',x:30,z:-20,body:0x3f5f8a,hat:0x222831,spar:true,
     lines:['대련은 이기려는 게 아니라 서로를 살피는 일이오.','막는 법을 먼저 익히시오. 공격은 그다음.','오늘도 한 수 겨뤄 보겠소?'],
     pool:[['mushroom',4],['iron',4],['tea',2],['stone',12]],gifts:[[3,{item:['tea',4]}],[6,{coin:300}],[10,{item:['crystal',2]}]]},
 };
-const STATIONS=[{k:'bench',x:13,z:-8,label:'작업대에서 제작'},{k:'home',x:-14,z:-4.5,label:'내 집'}];
+const STATIONS=[{k:'bench',x:13,z:-8,label:'작업대에서 제작'},{k:'home',x:-14,z:-4.5,label:'내 집'},
+  {k:'bench',x:9,z:VIL.z-3,label:'작업대에서 제작'},{k:'boat',x:0,z:PIER.isl+2.5,label:'나룻배 타기'},{k:'boat',x:0,z:PIER.main-2.5,label:'나룻배 타기'}];
+// 시작 섬에서 뱃사공이 차례로 건네는 부탁 — 채집·벌목·채굴·제작의 기초
+const TUT=[{item:'wood',qty:6,say:'배 바닥이 썩었어. 잔나무 목재 6개만 구해 줘. 나무 앞에 서서 E를 누르면 돼.'},{item:'stone',qty:6,say:'닻으로 쓸 돌이 필요해. 바위를 캐서 돌 6개를 가져다줘.'},
+  {item:'herb',qty:3,say:'뱃멀미 약을 달여야지. 풀밭에서 약초 3개를 따 와.'},{item:'plank',qty:4,say:'마지막이야. 저기 작업대에서 판자 4개를 만들어 와. 판자 하나에 잔나무 목재 3개가 들어.'}];
+// 고를 수 있는 모습. 장인족은 키가 작고 다부진 종족으로, 채굴과 제작을 25% 빨리 익힌다
+const CHARS=[{k:'Rogue_Hooded',n:'두건 여행자'},{k:'Knight',n:'기사'},{k:'Mage',n:'마법사'},{k:'Barbarian',n:'전사'},{k:'Rogue',n:'날쌘이'},{k:'Barbarian',n:'장인족',sx:1.4,sy:.74,tool:'1H_Axe'}];
 const COLORS=[0x3d6fb6,0xb6503d,0x3d9b6a,0x8a4fb6,0xc98a2b,0x2b9ac9];
 /* ============ 상태 ============ */
 let S;
 function newState(){return{v:1,nick:'',col:Math.floor(Math.random()*COLORS.length),coin:60,inv:{s_carrot:6},seed:null,
   sk:Object.fromEntries(Object.keys(SK).map(k=>[k,{lv:1,xp:0}])),tool:{axe:1,pick:1},house:1,plots:[],
-  fr:Object.fromEntries(Object.keys(NPC).map(k=>[k,{h:0,q:null,gift:0,got:0}])),stat:{gather:0,craft:0,harvest:0,wins:0,duels:0},x:0,z:8,seen:false}}
+  fr:Object.fromEntries(Object.keys(NPC).map(k=>[k,{h:0,q:null,gift:0,got:0}])),stat:{gather:0,craft:0,harvest:0,wins:0,duels:0},x:VIL.x,z:VIL.z+2,seen:false,tut:0,ferry:false}}
 function save(){try{S.x=P.x;S.z=P.z;localStorage.setItem('solbaram3d-v1',JSON.stringify(S))}catch(e){}}
-function load(){try{const d=JSON.parse(localStorage.getItem('solbaram3d-v1'));if(d&&d.v===1){S=Object.assign(newState(),d);return true}}catch(e){}return false}
+function load(){try{const d=JSON.parse(localStorage.getItem('solbaram3d-v1'));if(d&&d.v===1){S=Object.assign(newState(),d);for(const k in NPC)if(!S.fr[k])S.fr[k]={h:0,q:null,gift:0,got:0};
+  if(d.ferry===undefined){S.ferry=!!d.seen;S.tut=S.ferry?TUT.length:0;if(!S.ferry){S.x=VIL.x;S.z=VIL.z+2}}return true}}catch(e){}return false}
 const has=(id,n=1)=>(S.inv[id]||0)>=n;
 function give(id,n=1){S.inv[id]=(S.inv[id]||0)+n}
 function take(id,n=1){if(!has(id,n))return false;S.inv[id]-=n;if(S.inv[id]<=0){delete S.inv[id];if(S.seed===id)S.seed=null}return true}
@@ -217,13 +233,13 @@ const canPay=need=>Object.entries(need).every(([k,n])=>has(k,n));
 const pay=need=>Object.entries(need).forEach(([k,n])=>take(k,n));
 const needText=need=>Object.entries(need).map(([k,n])=>`<span style="color:${has(k,n)?'#3f6e2f':'#a0412f'}">${IT[k].n} ${S.inv[k]||0}/${n}</span>`).join(' · ');
 const xpNeed=lv=>Math.round(30*Math.pow(lv,1.4));
-function addXP(k,amt){const s=S.sk[k];if(s.lv>=10)return;s.xp+=amt;while(s.lv<10&&s.xp>=xpNeed(s.lv)){s.xp-=xpNeed(s.lv);s.lv++;toast(`${SK[k].n} ${s.lv}단계가 되었다!`)}if(s.lv>=10)s.xp=0}
+function addXP(k,amt){if(S.col===5&&(k==='mine'||k==='craft'))amt=Math.round(amt*1.25);const s=S.sk[k];if(s.lv>=10)return;s.xp+=amt;while(s.lv<10&&s.xp>=xpNeed(s.lv)){s.xp-=xpNeed(s.lv);s.lv++;toast(`${SK[k].n} ${s.lv}단계가 되었다!`)}if(s.lv>=10)s.xp=0}
 const totalLv=()=>Object.values(S.sk).reduce((a,s)=>a+s.lv,0);
 function rank(){const t=totalLv();return t<10?'새내기 여행자':t<16?'솔바람 이웃':t<24?'들녘의 일꾼':t<34?'숙련 장인':t<46?'대륙의 길잡이':'솔바람의 전설'}
 /* ============ 공개 3D 에셋 (KayKit, CC0) ============ */
 // 캐릭터: KayKit Character Pack Adventurers / 마을·자연: KayKit Medieval Hexagon Pack — 둘 다 CC0 1.0 (Kay Lousberg, kaylousberg.com)
 const ASSET={chars:['Rogue_Hooded','Knight','Mage','Barbarian','Rogue'],names:['두건 여행자','기사','마법사','전사','날쌘이'],loaded:false,char:{},env:{}};
-const NPCKIND={haram:'Barbarian',miru:'Mage',bori:'Rogue',gaon:'Knight'};
+const NPCKIND={haram:'Barbarian',miru:'Mage',bori:'Rogue',gaon:'Knight',mulgyeol:'Rogue_Hooded'};
 function loadAssets(onProg){return new Promise(res=>{
   if(typeof THREE==='undefined'||!THREE.GLTFLoader||!THREE.SkeletonUtils)return res(false);
   const L=new THREE.GLTFLoader(),total=ASSET.chars.length+1;let left=total,ok=true,fin=false;
@@ -265,7 +281,7 @@ function initScene(){
   sun=new THREE.DirectionalLight(0xfff0d0,.6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
   const sc=sun.shadow.camera;sc.left=-75;sc.right=75;sc.top=75;sc.bottom=-75;sc.near=10;sc.far=420;sun.shadow.bias=-.0006;sun.shadow.normalBias=.6;scene.add(sun);scene.add(sun.target);
   // 지형: 부드러운 음영 + 잔무늬 질감
-  const seg=230,g=new THREE.PlaneGeometry(WORLD*2,WORLD*2,seg,seg);g.rotateX(-Math.PI/2);
+  const seg=320,g=new THREE.PlaneGeometry(WORLD*2,WORLD*2,seg,seg);g.rotateX(-Math.PI/2);
   const pos=g.attributes.position,col=new Float32Array(pos.count*3),c=[0,0,0];
   for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),h=H(x,z);pos.setY(i,h);terrainColor(x,z,h,c,slopeAt(x,z));col.set(c,i*3)}
   g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();
@@ -304,11 +320,12 @@ function layGrass(){
 }
 function resize(){const r=$('#stage').getBoundingClientRect();if(!renderer||!r.width)return;renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
 /* ---- 아바타 ---- */
-const STYLE={haram:{style:'bandana',hair:0xdcdcdc,beard:true},miru:{style:'bun',hair:0x5a2f1c,skirt:true},bori:{style:'straw',hair:0x3a2a1c},gaon:{style:'topknot',hair:0x15131a,sash:0xc8553f}};
+const STYLE={haram:{style:'bandana',hair:0xdcdcdc,beard:true},miru:{style:'bun',hair:0x5a2f1c,skirt:true},bori:{style:'straw',hair:0x3a2a1c},gaon:{style:'topknot',hair:0x15131a,sash:0xc8553f},mulgyeol:{style:'straw',hair:0x2a2a30}};
 function makeAvatar(body,hat,o,kind){
-  if(ASSET.loaded&&kind&&ASSET.char[kind]){const g=new THREE.Group(),m=THREE.SkeletonUtils.clone(ASSET.char[kind].scene);m.scale.setScalar(1.3);g.add(m);
-    m.traverse(n=>{if(/^handslot/.test(n.name))n.children.forEach(c=>c.visible=false)});
-    const mixer=new THREE.AnimationMixer(m),acts={};ASSET.char[kind].clips.forEach(c=>acts[c.name]=mixer.clipAction(c));
+  const ck=typeof kind==='number'?CHARS[kind%CHARS.length]:kind?{k:kind}:null;
+  if(ASSET.loaded&&ck&&ASSET.char[ck.k]){const g=new THREE.Group(),m=THREE.SkeletonUtils.clone(ASSET.char[ck.k].scene),w=1.3*(ck.sx||1);m.scale.set(w,1.3*(ck.sy||1),w);g.add(m);
+    m.traverse(n=>{if(/^handslot/.test(n.name))n.children.forEach(c=>c.visible=!!ck.tool&&c.name===ck.tool)});
+    const mixer=new THREE.AnimationMixer(m),acts={};ASSET.char[ck.k].clips.forEach(c=>acts[c.name]=mixer.clipAction(c));
     g.userData={mixer,acts,cur:'',lastT:-1,atk:'Unarmed_Melee_Attack_Punch_A'};return g}
   o=o||{style:'straw',pack:true};
   const g=new THREE.Group(),skin=lam(0xf0c8a0),bm=lam(body),pants=lam(0x4a3a2c),boot=lam(0x2a1e16),hairM=lam(o.hair||0x3a2a1c),dark=lam(0x1c140f),hm=lam(hat);
@@ -373,6 +390,8 @@ function buildNodes(){
   const fz=(type,cnt,ok)=>{let n=0,g=0;while(n<cnt&&g++<20000){const x=(R()*2-1)*380,z=(R()*2-1)*380,h=H(x,z);if(Math.hypot(x,z)<26||!ok(zoneTier(x,z),h))continue;put(type,x,z);n++}};
   fz('herb',want.herb,(t,h)=>h>1.2&&h<26&&t<=2);fz('flower',want.flower,(t,h)=>h>1.2&&h<24&&t<=2);
   fz('mushroom',want.mushroom,(t,h)=>h>1.4&&h<30&&t>=2);fz('starbloom',want.starbloom,(t,h)=>h>2&&t===3);fz('shell',want.shell,(t,h)=>h>.15&&h<.95);
+  const isl=(type,cnt,ok)=>{let n=0,g=0;while(n<cnt&&g++<6000){const x=ISL.x+(R()*2-1)*64,z=ISL.z+(R()*2-1)*64,h=H(x,z);if(Math.hypot(x-VIL.x,z-VIL.z)<17||Math.abs(x)<4&&z<VIL.z||!ok(h))continue;put(type,x,z);n++}};
+  isl('tree1',40,h=>h>1.4);isl('rock1',18,h=>h>1.2);isl('herb',14,h=>h>1.2);isl('flower',12,h=>h>1.2);isl('shell',10,h=>h>.15&&h<.95);
   const G=nodeGeos(),glow=new THREE.MeshLambertMaterial({vertexColors:true,emissive:0x2a6f80});
   // 에셋이 있으면 나무·바위는 공개 모델로, 광석 알갱이와 채집물은 직접 만든 도형으로
   const ore2=mergeGeo([[ico(.3).translate(.6,1.05,.5),0xd9822b],[ico(.26).translate(-.55,.9,.7),0xc46f22],[ico(.24).translate(.1,1.25,-.3),0xe0903a],[ico(.2).translate(-.9,.65,-.2),0xd9822b]]),
@@ -425,6 +444,26 @@ function buildPlots(){
 function growT(c){return CROP[c].t*(1-.03*(S.sk.farm.lv-1))}
 function plotState(i){const p=S.plots[i];if(!p)return{st:'empty'};const f=(Date.now()-p.t0)/1000/growT(p.c);return{st:f>=1?'ready':'grow',f:Math.min(1,f),c:p.c}}
 function refreshPlots(){plotMeshes.forEach((m,i)=>{const s=plotState(i);m.crop.visible=s.st!=='empty';if(s.st!=='empty'){const k=.35+s.f*.85;m.crop.scale.set(k,k,k);m.fr.color.setHex(CROP[s.c].col);m.fruits.forEach(f=>f.visible=s.st==='ready')}})}
+function buildIsland(){
+  const A=ASSET.loaded,vx=VIL.x,vz=VIL.z,y=H(vx,vz);
+  const b=new THREE.Group();b.position.set(9,H(9,vz-3),vz-3);box(3,.22,1.5,0xa87a48,0,1.1,0,b);[[-1.3,-.6],[1.3,-.6],[-1.3,.6],[1.3,.6]].forEach(p=>box(.2,1.1,.2,0x6b4a2e,p[0],.55,p[1],b));box(.5,.3,.3,0x8f8c84,.8,1.36,.2,b);scene.add(b);
+  const f=new THREE.Group();f.position.set(vx,y,vz+4);for(let i=0;i<5;i++)part(cyl(.12,.12,1.3,6).rotateZ(1.2).rotateY(i*1.256),0x6b4a2e,0,.3,0,f);const fl=new THREE.Mesh(cone(.45,1.1,6),GLOW());fl.position.y=.8;f.add(fl);
+  for(let i=0;i<7;i++){const a=i/7*6.283;part(ico(.28),0x8f8c84,Math.cos(a),.12,Math.sin(a),f)}scene.add(f);
+  if(A){envObj('building_home_A_red',8,-10,vz-6,.5);envObj('tent',7.5,-8,vz+9,2.2);envObj('tent',7.5,10,vz+9,-2);
+    [['barrel',6,6,vz+5],['crate_A_big',6,11.5,vz-5],['sack',6,-5,vz+1],['resource_lumber',6,12.5,vz+1],['bucket_water',6,3,vz+7]].forEach((q,i)=>envObj(q[0],q[1],q[2],q[3],i*1.3))}
+  else{const hy=H(-10,vz-6);box(6,3,5,0xd9c4a0,-10,hy+1.5,vz-6);part(prism(3.6,7).scale(1,.8,1),0x8a5a3a,-10,hy+4.4,vz-6)}
+  // 섬과 본토의 나루터, 그리고 나룻배
+  const pier=(z0,dir)=>{for(let i=0;i<6;i++)box(2.6,.18,1.3,i%2?0x9c6b3c:0x8a6238,0,.6,z0+dir*i*1.35);[-1.25,1.25].forEach(k=>[1,5].forEach(i=>box(.22,2.2,.22,0x4a3526,k,.1,z0+dir*i*1.35)));
+    const boat=new THREE.Group();boat.position.set(3.6,.1,z0+dir*7.5);boat.rotation.y=.3;box(2.2,.7,6,0x7a4f2e,0,.2,0,boat);box(1.5,.5,1.2,0x7a4f2e,0,.2,3.4,boat);box(1.5,.5,1.2,0x7a4f2e,0,.2,-3.4,boat);box(1.8,.1,5.6,0xa87a48,0,.5,0,boat);
+    part(cyl(.1,.12,5,6),0x4a3526,0,2.9,.4,boat);box(.06,2.8,2.4,0xf2e4c4,0,3.6,-.9,boat);scene.add(boat)};
+  pier(PIER.isl,-1);pier(PIER.main,1);
+}
+function sail(){
+  if(!S.ferry)return toast('배가 아직 고장 나 있다. 뱃사공 물결의 부탁을 들어주자.');
+  const toMain=P.z>345;P.x=0;P.z=toMain?PIER.main-4:PIER.isl+4;P.dest=null;$('#modal').hidden=true;modalRender=null;
+  toast(toMain?'배를 타고 본토 남쪽 나루에 닿았다. 북쪽으로 가면 마을이다. (귀환 단추로도 갈 수 있다)':'배를 타고 시작 섬으로 돌아왔다.');save();
+}
+function openBoat(){if(!S.ferry)return sail();openModal('나룻배',()=>`<div class="story">${P.z>345?'본토 남쪽 나루로 건너간다.':'시작 섬으로 건너간다.'}</div><button class="btn alt" data-a="sail">배 타기</button>`)}
 function buildVillage(){
   const Y=(x,z)=>H(x,z);
   // 길과 광장 (바닥 무늬)
@@ -473,9 +512,10 @@ function buildVillage(){
     q=spot(-120,-200,h=>h>4&&h<26);envObj('tent',8,q[0],q[1],.4);envObj('tent',8,q[0]+7,q[1]+3,2);envObj('crate_open',7,q[0]+3,q[1]-4,1);
     q=spot(160,170,h=>h>3);envObj('building_home_A_red',8.5,q[0],q[1],2);envObj('building_windmill_red',9,q[0]+12,q[1]+6,1);
   }
+  buildIsland();
   // 주민
   for(const id in NPC){const d=NPC[id],av=makeAvatar(d.body,d.hat,STYLE[id],NPCKIND[id]);av.position.set(d.x,H(d.x,d.z),d.z);const lb=label(`${d.n} · ${d.role}`,'#ffe9a8');lb.position.y=3.9;av.add(lb);scene.add(av);npcs[id]={av,x:d.x,z:d.z,swing:0,guard:false,moving:false}}
-  me=makeAvatar(COLORS[S.col],0xd8b25a,undefined,ASSET.chars[S.col%5]);scene.add(me);
+  me=makeAvatar(COLORS[S.col],0xd8b25a,undefined,S.col);scene.add(me);
 }
 /* ============ UI 공통 ============ */
 function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;$('#toasts').appendChild(d);setTimeout(()=>d.remove(),2600);while($('#toasts').children.length>4)$('#toasts').firstChild.remove()}
@@ -508,7 +548,7 @@ function act(){
   if(t.k==='node')return startGather(t.nd);
   if(t.k==='plot')return plotAct(t.i);
   if(t.k==='npc')return talk(t.id);
-  if(t.k==='station')return t.s.k==='bench'?openCraft():openHome();
+  if(t.k==='station')return t.s.k==='bench'?openCraft():t.s.k==='boat'?openBoat():openHome();
   if(t.k==='peer')return openPeer(t.id);
 }
 function startGather(nd){
@@ -540,7 +580,7 @@ function recipeRow(r,ok){
   <button class="btn" data-a="make" data-v="${r.id}" ${lock||owned||prev||!ok||!canPay(r.need)?'disabled':''}>만들기</button></div>`;
 }
 function openCraft(){
-  openModal('제작',()=>{const nb=near(13,-8,7),nh=near(-14,-6,9);
+  openModal('제작',()=>{const nb=STATIONS.some(s=>s.k==='bench'&&near(s.x,s.z,7)),nh=near(-14,-6,9);
     return `<div class="muted">도구·가구는 작업대, 음식은 집 화덕 가까이에서 만든다. 제작 ${S.sk.craft.lv}단계</div>
     <div class="card"><h3>도구 — 다음 단계의 땅을 연다 ${nb?'':'<span class="tag">작업대로 가야 함</span>'}</h3>${RECIPES.filter(r=>r.tool).map(r=>recipeRow(r,nb)).join('')}</div>
     <div class="card"><h3>목공·세공</h3>${RECIPES.filter(r=>!r.tool&&r.at==='bench').map(r=>recipeRow(r,nb)).join('')}</div>
@@ -570,10 +610,11 @@ function openShop(){
 function newQuest(id){const d=NPC[id],lv=totalLv();const pool=d.pool.slice(0,lv<12?3:d.pool.length);const [item,qty]=rnd(pool);S.fr[id].q={item,qty}}
 function talk(id){
   const d=NPC[id],f=S.fr[id];if(!f.q)newQuest(id);const line=rnd(d.lines);
-  openModal(`${d.n} · ${d.role}`,()=>{const q=f.q,it=IT[q.item],rw=it.p*q.qty*2+20,giftable=Object.keys(S.inv).filter(k=>!IT[k].crop).slice(0,8),cd=Date.now()<f.gift;
+  openModal(`${d.n} · ${d.role}`,()=>{const tut=d.ferry&&!S.ferry?TUT[S.tut]:null,q=f.q,it=IT[q.item],rw=it.p*q.qty*2+20,giftable=Object.keys(S.inv).filter(k=>!IT[k].crop).slice(0,8),cd=Date.now()<f.gift;
     return `<div class="story">“${esc(line)}”</div>
     <div class="row"><span style="color:#c8553f">${'♥'.repeat(Math.min(10,f.h))}${'♡'.repeat(Math.max(0,10-f.h))}</span><span class="muted">정 ${f.h}/10</span></div>
-    <div class="card"><h3>부탁</h3><div>${it.i} ${it.n} ${S.inv[q.item]||0}/${q.qty} <span class="muted">· 보답 ${rw}전, 정 +1</span></div><button class="btn alt" data-a="deliver" data-v="${id}" ${has(q.item,q.qty)?'':'disabled'}>건네주기</button></div>
+    ${tut?`<div class="card"><h3>배 고치기 ${S.tut+1}/${TUT.length}</h3><div>${esc(tut.say)}</div><div>${IT[tut.item].i} ${IT[tut.item].n} ${S.inv[tut.item]||0}/${tut.qty}</div><button class="btn alt" data-a="tut" ${has(tut.item,tut.qty)?'':'disabled'}>건네주기</button></div>`:`<div class="card"><h3>부탁</h3><div>${it.i} ${it.n} ${S.inv[q.item]||0}/${q.qty} <span class="muted">· 보답 ${rw}전, 정 +1</span></div><button class="btn alt" data-a="deliver" data-v="${id}" ${has(q.item,q.qty)?'':'disabled'}>건네주기</button></div>`}
+    ${d.ferry&&S.ferry?'<button class="btn alt" data-a="sail">배 타기</button>':''}
     ${d.shop?'<button class="btn" data-a="shop">좌판 보기 (팔기·씨앗 사기)</button>':''}
     ${d.spar?`<button class="btn warn" data-a="sparnpc">한 수 겨루기 (대련)</button><div class="muted">대련은 서로 다치지 않는다. 지거나 이겨도 잃는 것은 없다.</div>`:''}
     <div class="card"><h3>선물</h3>${cd?'<div class="muted">오늘 선물은 이미 건넸다. 잠시 뒤에 다시.</div>':giftable.length?`<div class="row">${giftable.map(k=>`<button class="btn" data-a="gift" data-v="${id}" data-k="${k}">${IT[k].i} ${IT[k].n}</button>`).join('')}</div>`:'<div class="muted">건넬 물건이 없다.</div>'}</div>`});
@@ -633,7 +674,7 @@ async function initRoom(){
 function upPeer(p){
   const s=p.presence||{};if(typeof s.x!=='number'||typeof s.z!=='number'||!isFinite(s.x)||!isFinite(s.z))return;
   let o=peers.get(p.peer);const nick=String(s.n||'여행자').slice(0,12),col=COLORS[(s.c|0)%COLORS.length]||COLORS[0];
-  if(!o){o={av:makeAvatar(col,0xd8b25a,undefined,ASSET.chars[(s.c|0)%5]),x:s.x,z:s.z,nick:'',swing:0};o.av.position.set(s.x,H(s.x,s.z),s.z);scene.add(o.av);peers.set(p.peer,o);toast(`${nick}이(가) 대륙에 들어왔다.`)}
+  if(!o){o={av:makeAvatar(col,0xd8b25a,undefined,(s.c|0)),x:s.x,z:s.z,nick:'',swing:0};o.av.position.set(s.x,H(s.x,s.z),s.z);scene.add(o.av);peers.set(p.peer,o);toast(`${nick}이(가) 대륙에 들어왔다.`)}
   if(o.nick!==nick){if(o.lb)o.av.remove(o.lb);o.lb=label(nick);o.lb.position.y=3.9;o.av.add(o.lb);o.nick=nick}
   o.tx=clamp(s.x,-WORLD,WORLD);o.tz=clamp(s.z,-WORLD,WORLD);o.tr=+s.r||0;o.mv=!!s.m;o.guard=!!s.g;o.hp=clamp(+s.hp||0,0,100);if(s.sw&&s.sw!==o.sw){o.sw=s.sw;o.swing=.35}
 }
@@ -663,7 +704,7 @@ function openPeer(id){const p=peers.get(id);if(!p)return;
 function openSocial(){
   openModal('교류',()=>{const list=[...peers.entries()];
     return `<div class="card"><h3>내 이름</h3><div class="row"><input type="text" id="nickIn" maxlength="12" value="${esc(S.nick)}" placeholder="이름 (12자)" class="grow"><button class="btn" data-a="nick">정하기</button></div>
-      <div class="row">${ASSET.loaded?ASSET.names.map((n,i)=>`<button class="btn ${S.col%5===i?'alt':''}" data-a="color" data-v="${i}">${n}</button>`).join(''):COLORS.map((c,i)=>`<button class="btn" data-a="color" data-v="${i}" style="background:#${c.toString(16).padStart(6,'0')};outline:${S.col===i?'3px solid #e3b04b':'none'}" aria-label="옷 색 ${i+1}">옷</button>`).join('')}</div></div>
+      <div class="row">${ASSET.loaded?CHARS.map((c,i)=>`<button class="btn ${S.col===i?'alt':''}" data-a="color" data-v="${i}">${c.n}</button>`).join('')+'<div class="muted">장인족은 키가 작고 다부진 종족으로, 채굴과 제작 경험을 25% 더 얻는다.</div>':COLORS.map((c,i)=>`<button class="btn" data-a="color" data-v="${i}" style="background:#${c.toString(16).padStart(6,'0')};outline:${S.col===i?'3px solid #e3b04b':'none'}" aria-label="옷 색 ${i+1}">옷</button>`).join('')}</div></div>
     <div class="card"><h3>함께 있는 여행자 ${list.length}명</h3>${room?(list.length?list.map(([id,p])=>`<div class="row"><span class="grow">${esc(p.nick)} <span class="muted">${Math.round(Math.hypot(p.x-P.x,p.z-P.z))}걸음 거리</span></span><button class="btn" data-a="reqduel" data-v="${id}">대련 청하기</button></div>`).join(''):'<div class="muted">지금은 나 혼자다. 이 페이지를 함께 연 사람이 여기에 나타난다.</div>'):'<div class="muted">이 화면에서는 다른 여행자와 이어지지 않는다. 주민들과는 언제든 교류할 수 있다.</div>'}</div>
     <div class="card"><h3>말하기</h3><div class="row"><input type="text" id="chatIn" maxlength="80" placeholder="인사를 건네 보자" class="grow"><button class="btn" data-a="chat">보내기</button></div></div>
     <div class="card"><h3>주민과의 정</h3>${Object.keys(NPC).map(id=>`<div class="row"><span class="grow">${NPC[id].n} <span class="muted">${NPC[id].role}</span></span><span style="color:#c8553f">${'♥'.repeat(S.fr[id].h)}${'♡'.repeat(10-S.fr[id].h)}</span></div>`).join('')}</div>`});
@@ -721,7 +762,12 @@ document.addEventListener('click',e=>{
   switch(a){
     case 'close':closeModal();break;
     case 'bag':openBag();break;case 'craft':openCraft();break;case 'skills':openSkills();break;case 'social':openSocial();break;
-    case 'recall':if(duel)break;P.x=0;P.z=8;P.dest=null;toast('마을 우물가로 돌아왔다.');break;
+    case 'recall':if(duel)break;P.dest=null;if(P.z>345){P.x=VIL.x;P.z=VIL.z+2;toast('섬 마을 모닥불 곁으로 돌아왔다.')}else{P.x=0;P.z=8;toast('마을 우물가로 돌아왔다.')}break;
+    case 'sail':sail();break;
+    case 'tut':{const t=TUT[S.tut];if(!t||!take(t.item,t.qty))break;S.coin+=30;S.tut++;addXP('social',10);hud();
+      if(S.tut>=TUT.length){S.ferry=true;mq.push(()=>openModal('배가 다 고쳐졌다',()=>`<div class="story">“덕분에 다시 바다로 나갈 수 있겠어. 이제 본토로 건너가도 좋아. 거긴 넓으니까 천천히 둘러봐.”</div><div class="muted">나루터의 배나 뱃사공에게서 본토와 섬을 오갈 수 있다. 본토 마을에는 내 집과 밭, 시장, 대련장이 있다.</div><button class="btn alt" data-a="close">알겠어요</button>`))}
+      else toast('물결이 고마워하며 엽전 30을 건넸다.');
+      save();closeModal();if(!modalOpen())talk('mulgyeol');break}
     case 'sel':sel=sel===v?null:v;rer();break;
     case 'seed':S.seed=S.seed===v?null:v;rer();break;
     case 'make':make(v);break;
@@ -739,7 +785,7 @@ document.addEventListener('click',e=>{
     case 'decduel':{if(pendingReq)emitDuel({k:'dec',to:pendingReq});pendingReq=null;$('#mClose').hidden=false;closeModal();break}
     case 'wave':P.swing=1.2;if(me.userData.mixer)me.userData.atk='Cheer';swN++;sendChat('안녕하세요! 👋');closeModal();break;
     case 'nick':{const t=($('#nickIn').value||'').trim().slice(0,12);S.nick=t;S.seen=true;toast(t?`이제 ${t}(이)라 불린다.`:'이름을 비웠다.');save();if($('#mClose').hidden){$('#mClose').hidden=false;closeModal()}else rer();break}
-    case 'color':S.col=+v;scene.remove(me);me=makeAvatar(COLORS[S.col],0xd8b25a,undefined,ASSET.chars[S.col%5]);scene.add(me);rer();break;
+    case 'color':S.col=+v;scene.remove(me);me=makeAvatar(COLORS[S.col],0xd8b25a,undefined,S.col);scene.add(me);rer();break;
     case 'chat':{const i=$('#chatIn');sendChat(i.value);i.value='';break}
     case 'save':save();toast('저장했다.');break;
     case 'reset':if(!resetArm){resetArm=true;el.textContent='한 번 더 누르면 초기화';setTimeout(()=>resetArm=false,3000);break}try{localStorage.removeItem('solbaram3d-v1')}catch(e){}location.reload();break;
@@ -751,7 +797,7 @@ function buildMini(){const c=document.createElement('canvas');c.width=c.height=1
   for(let j=0;j<132;j++)for(let i=0;i<132;i++){const wx=(i/131*2-1)*WORLD,wz=(j/131*2-1)*WORLD,h=H(wx,wz),o=(j*132+i)*4;if(h<0){im.data[o]=60;im.data[o+1]=120;im.data[o+2]=165}else{terrainColor(wx,wz,h,col);im.data[o]=col[0]*255;im.data[o+1]=col[1]*255;im.data[o+2]=col[2]*255}im.data[o+3]=255}
   x.putImageData(im,0,0);miniBase=c}
 function drawMini(){const x=$('#mini').getContext('2d');x.drawImage(miniBase,0,0);const m=(wx,wz)=>[(wx/WORLD+1)/2*131,(wz/WORLD+1)/2*131];
-  x.fillStyle='#e3b04b';let p=m(0,0);x.fillRect(p[0]-2,p[1]-2,5,5);
+  x.fillStyle='#e3b04b';let p=m(0,0);x.fillRect(p[0]-2,p[1]-2,5,5);p=m(VIL.x,VIL.z);x.fillRect(p[0]-2,p[1]-2,4,4);
   peers.forEach(o=>{p=m(o.x,o.z);x.fillStyle='#fff';x.beginPath();x.arc(p[0],p[1],2.5,0,7);x.fill()});
   p=m(P.x,P.z);x.fillStyle='#c8553f';x.strokeStyle='#fff';x.lineWidth=1.5;x.beginPath();x.arc(p[0],p[1],3.5,0,7);x.fill();x.stroke();
   x.strokeStyle='#fff';x.beginPath();x.moveTo(p[0],p[1]);x.lineTo(p[0]-Math.sin(camYaw)*8,p[1]-Math.cos(camYaw)*8);x.stroke()}
@@ -817,7 +863,7 @@ async function start(){
   try{initScene()}catch(e){$('#stage').insertAdjacentHTML('beforeend','<div class="overlay"><div class="sheet"><div class="sheet-body">이 브라우저에서는 3D(WebGL)를 켤 수 없다. 크롬·엣지 최신 버전에서 열어 보자.</div></div></div>');return}
   buildNodes();buildVillage();buildMini();resize();new ResizeObserver(resize).observe($('#stage'));sky();hud();
   requestAnimationFrame(t=>{last=t;frame(t)});initRoom();setInterval(save,20000);
-  if(!S.seen)openModal('솔바람 대륙에 오신 것을 환영합니다',()=>`<div class="story">바람과 솔향이 흐르는 넓은 대륙. 서두를 일도, 잃을 것도 없다. 걷고, 줍고, 가꾸고, 만들며 천천히 자라면 된다.</div>
+  if(!S.seen)openModal('솔바람 대륙에 오신 것을 환영합니다',()=>`<div class="story">바람과 솔향이 흐르는 넓은 대륙. 서두를 일도, 잃을 것도 없다. 걷고, 줍고, 가꾸고, 만들며 천천히 자라면 된다.<br>여행은 본토 남쪽의 작은 섬에서 시작한다. 뱃사공 물결의 부탁을 들어주며 손을 익히고, 배가 고쳐지면 본토로 건너간다.</div>
     <div class="card"><h3>이름을 알려 주세요</h3><div class="row"><input type="text" id="nickIn" maxlength="12" placeholder="이름 (12자)" class="grow"><button class="btn alt" data-a="nick">여행 시작</button></div></div>
     <div class="card"><h3>할 수 있는 일</h3><div>• <b>채집·벌목·채굴</b> — 가까이 가서 <kbd>E</kbd>. 더 좋은 도구를 만들면 더 먼 땅이 열린다</div><div>• <b>경작</b> — 집 옆 밭에 씨앗을 심으면 다른 일을 하는 동안에도 자란다</div><div>• <b>제작</b> — 작업대에서 도구·가구, 집 화덕에서 음식</div><div>• <b>교류</b> — 주민의 부탁을 들어주고 선물하며 정을 쌓는다. 이 페이지를 함께 연 사람과는 같은 대륙에서 만난다</div><div>• <b>대련</b> — 가온 사범이나 다른 여행자와. 서로 다치지 않고 잃는 것도 없다</div></div>
     <div class="muted">이동 <kbd>WASD</kbd>/<kbd>방향키</kbd> 또는 <b>땅을 클릭</b> · 시점 화면 끌기 · 확대 휠 · 행동 <kbd>E</kbd> · 공격 <kbd>J</kbd> · 방어 <kbd>K</kbd> · 모바일은 왼쪽 조이스틱과 오른쪽 버튼</div>`,true);

@@ -186,3 +186,16 @@ Lumen, Nanite, 레이 트레이싱을 높은 설정으로 써도 되는 사양�
 
 - 언리얼 세션은 반드시 프로젝트 루트 폴더에서 연다. `C:\Windows\System32` 같은 시스템 폴더에서는 열지 않는다.
 - 2장의 "쓸 수 없는 것"은 언리얼에서도 그대로다.
+
+### 설치 확인 결과 (2026-11-14, MAIN PC)
+
+| 항목 | 상태 |
+|---|---|
+| 언리얼 엔진 | 5.8 설치됨. `C:\Program Files\Epic Games\UE_5.8` (에디터: `Engine\Binaries\Win64\UnrealEditor.exe`) |
+| Epic Games Launcher | 설치됨. `C:\Program Files\Epic Games\Launcher` |
+| Visual Studio | 2026 Insiders(미리보기 판). `C:\Program Files\Microsoft Visual Studio\18\Insiders`. `VC\Tools\MSVC` 폴더 있음. 들어 있는 MSVC 버전과 v143 도구 유무는 미확인 |
+| Git | 2.54.0 |
+| Node.js | v24.18.0 |
+
+- 엔진이 5.8이므로 연결 도구는 5.8을 지원하는 것을 골라야 한다. 검색으로 본 바로는 VibeUE 최신판이 5.8 이상을 요구하고, UnrealClaude는 5.7용으로 소개돼 있다. 각 저장소에서 직접 확인할 것.
+- Visual Studio가 Insiders 판이라 플러그인 빌드에서 컴파일러 버전 오류가 날 수 있다. 오류가 나면 Visual Studio Installer의 "수정 → 개별 구성 요소"에서 엔진이 요구하는 MSVC 도구 버전을 추가한다.
